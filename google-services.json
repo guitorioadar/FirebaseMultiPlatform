@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "87568968381",
+    "project_id": "fir-multplatform",
+    "storage_bucket": "fir-multplatform.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:87568968381:android:7fba22b8b19a4d0ba7e5d4",
+        "android_client_info": {
+          "package_name": "com.wasisadman.FirebaseMultiPlatform"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJzWWx781d-U1hj8K2B-HwU3cCuXlXn4U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
