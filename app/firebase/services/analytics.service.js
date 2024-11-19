@@ -1,48 +1,73 @@
-// import { Platform } from 'react-native';
+import { Platform } from 'react-native';
 
-// class AnalyticsService {
-//     constructor() {
-//         if (Platform.OS === 'web') {
-//             this.initializeWeb();
-//         } else {
-//             this.initializeNative();
-//         }
-//     }
+class AnalyticsService {
+    constructor() {
+        this.isInitialized = false;
+        this.initializeAttempts = 0;
+        this.maxAttempts = 5;
+        this.initialize();
+    }
 
-//     async initializeWeb() {
-//         const {
-//             getAnalytics,
-//             logEvent,
-//             setUserProperties,
-//             setUserId,
-//             setCurrentScreen
-//         } = await import('firebase/analytics');
-//         const { app } = await import('../config/firebase.web');
+    async initialize() {
+        if (Platform.OS === 'web') {
+            // this.attemptWebInitialization();
+            this.initializeWeb();
+        } else {
+            this.initializeNative();
+        }
+    }
 
-//         this.analytics = getAnalytics(app);
-//         this.logEvent = logEvent;
-//         this.setUserProperties = setUserProperties;
-//         this.setUserId = setUserId;
-//         this.setCurrentScreen = setCurrentScreen;
-//     }
 
-//     async initializeNative() {
-//         const analytics = await import('@react-native-firebase/analytics');
-//         this.analytics = analytics.default();
-//     }
+    async initializeWeb() {
+        try {
+            const {
+                getAnalytics,
+                logEvent,
+                isSupported
+            } = await import('firebase/analytics');
+            const { app } = await import('../config/firebase.web');
 
-//     // Unified API methods
-//     async logEvents(eventName, params = {}) {
-//         try {
-//             if (Platform.OS === 'web') {
-//                 await this.logEvent(this.analytics, eventName, params);
-//             } else {
-//                 await this.analytics.logEvent(eventName, params);
-//             }
-//         } catch (error) {
-//             console.error('Analytics error:', error);
-//         }
-//     }
-// }
+            const analyticsSupported = await isSupported();
 
-// export const analyticsService = new AnalyticsService();
+            if (analyticsSupported) {
+                this.analytics = getAnalytics(app);
+                this.logEvent = logEvent;
+                console.log('Web analytics initialized successfully');
+            } else {
+                console.log('Analytics not supported in this environment');
+            }
+        } catch (error) {
+            console.error('Failed to initialize web analytics:', error);
+        }
+    }
+
+
+    async initializeNative() {
+        try {
+            const analytics = await import('@react-native-firebase/analytics');
+            this.analytics = analytics.default();
+            console.log('Native analytics initialized successfully');
+        } catch (error) {
+            console.error('Failed to initialize native analytics:', error);
+        }
+    }
+
+    async logEvents(eventName, params = {}) {
+        try {
+            if (!this.analytics) {
+                console.log('Analytics not initialized');
+                return;
+            }
+
+            if (Platform.OS === 'web') {
+                await this.logEvent(this.analytics, eventName, params);
+            } else {
+                await this.analytics.logEvent(eventName, params);
+            }
+        } catch (error) {
+            console.error('Analytics error:', error);
+        }
+    }
+}
+
+export const analyticsService = new AnalyticsService();

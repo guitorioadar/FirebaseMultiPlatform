@@ -8,7 +8,7 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
-import { authService, firestoreService } from './firebase';
+import { analyticsService, authService, firestoreService } from './firebase';
 import { User } from 'firebase/auth';
 
 export default function Index() {
@@ -27,7 +27,7 @@ export default function Index() {
   const handleLogin = async () => {
     try {
       await authService.login(email, password);
-      // analyticsService.logEvents('login', { email, password });
+      analyticsService.logEvents('login', { email, password });
     } catch (error) {
       console.error('Login error:', error);
     }
@@ -44,7 +44,7 @@ export default function Index() {
   const handleLogout = async () => {
     try {
       await authService.logout();
-      // analyticsService.logEvents('logout');
+      analyticsService.logEvents('logout');
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -58,7 +58,7 @@ export default function Index() {
         completed: false,
         createdAt: new Date()
       });
-      // analyticsService.logEvents('add_todo', { text: newTodo });
+      analyticsService.logEvents('add_todo', { text: newTodo });
       setNewTodo('');
       fetchTodos();
     } catch (error) {
@@ -80,7 +80,7 @@ export default function Index() {
 
   const handleDeleteTodo = async (id: string) => {
     firestoreService.deleteDocument('todos', id);
-    // analyticsService.logEvents('delete_todo', { id, userId: user?.uid, text: todos.find(todo => todo.id === id)?.text });
+    analyticsService.logEvents('delete_todo', { id, userId: user?.uid, text: todos.find(todo => todo.id === id)?.text });
     fetchTodos();
   };
 
