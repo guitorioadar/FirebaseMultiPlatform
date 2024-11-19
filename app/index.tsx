@@ -8,7 +8,7 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
-import { analyticsService, authService, firestoreService } from './firebase';
+import { addDoc, analyticsService, authService, collection, deleteDoc, firestoreService, getDocs, getDocuments, orderBy, query, where } from './firebase';
 import { User } from 'firebase/auth';
 
 export default function Index() {
@@ -52,7 +52,7 @@ export default function Index() {
 
   const addTodo = async () => {
     try {
-      firestoreService.addDocument('todos', {
+      addDoc('todos', {
         text: newTodo,
         userId: user?.uid,
         completed: false,
@@ -68,18 +68,23 @@ export default function Index() {
 
   const fetchTodos = async () => {
     console.log('fetchTodos', Date());
+    console.log('user', user);
     if (!user) return;
-    try {
-      const todos = await firestoreService.getDocuments('todos', 'userId', user.uid);
+    getDocs(query(
+      collection('todos'),
+      where('userId', '==', user.uid),
+      orderBy('text', 'desc'),
+    )).then((snapshot) => {
+      console.log('snapshot', snapshot);
+      if (snapshot.empty) return;
+      const todos = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
       console.log('todos', Date(), todos);
       setTodos(todos);
-    } catch (error) {
-      console.error('Fetch todos error:', error);
-    }
+    });
   };
 
   const handleDeleteTodo = async (id: string) => {
-    firestoreService.deleteDocument('todos', id);
+    await deleteDoc('todos', id);
     analyticsService.logEvents('delete_todo', { id, userId: user?.uid, text: todos.find(todo => todo.id === id)?.text });
     fetchTodos();
   };
@@ -138,7 +143,7 @@ export default function Index() {
       </View>
 
       <ScrollView style={styles.todoList}>
-        {todos.map((todo) => (
+        {todos && todos?.map((todo) => (
           <View key={todo.id} style={styles.todoItem}>
             <Text>{todo.text}</Text>
             <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteTodo(todo.id)}>
