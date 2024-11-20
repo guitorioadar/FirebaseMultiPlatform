@@ -12,8 +12,8 @@ import { addDoc, analyticsService, authService, collection, deleteDoc, firestore
 import { User } from 'firebase/auth';
 
 export default function Index() {
-  // const [email, setEmail] = useState<string>('wasisadman.cse@gmail.com');
-  const [email, setEmail] = useState<string>('guitorioadar@gmail.com');
+  const [email, setEmail] = useState<string>('wasisadman.cse@gmail.com');
+  // const [email, setEmail] = useState<string>('guitorioadar@gmail.com');
   const [password, setPassword] = useState<string>('123456');
   const [user, setUser] = useState<User | null>(null);
   const [todos, setTodos] = useState<any[]>([]);
