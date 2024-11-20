@@ -12,7 +12,8 @@ import { addDoc, analyticsService, authService, collection, deleteDoc, firestore
 import { User } from 'firebase/auth';
 
 export default function Index() {
-  const [email, setEmail] = useState<string>('wasisadman.cse@gmail.com');
+  // const [email, setEmail] = useState<string>('wasisadman.cse@gmail.com');
+  const [email, setEmail] = useState<string>('guitorioadar@gmail.com');
   const [password, setPassword] = useState<string>('123456');
   const [user, setUser] = useState<User | null>(null);
   const [todos, setTodos] = useState<any[]>([]);
@@ -27,6 +28,7 @@ export default function Index() {
   const handleLogin = async () => {
     try {
       await authService.login(email, password);
+      fetchTodos();
       analyticsService.logEvents('login', { email, password });
     } catch (error) {
       console.error('Login error:', error);
@@ -34,11 +36,15 @@ export default function Index() {
   };
 
   const handleRegister = async () => {
-    try {
-      await authService.register(email, password);
-    } catch (error) {
-      console.error('Register error:', error);
-    }
+    authService.register(email, password)
+      .then(() => {
+        handleLogin();
+      })
+      .catch((error: any) => {
+        console.error('Register error:', error);
+        alert(error.message);
+      });
+    analyticsService.logEvents('register', { email, password });
   };
 
   const handleLogout = async () => {
@@ -69,6 +75,7 @@ export default function Index() {
   const fetchTodos = async () => {
     console.log('fetchTodos', Date());
     console.log('user', user);
+    console.log('user.uid', user?.uid);
     if (!user) return;
     getDocs(query(
       collection('todos'),
@@ -76,7 +83,11 @@ export default function Index() {
       orderBy('text', 'desc'),
     )).then((snapshot) => {
       console.log('snapshot', snapshot);
-      if (snapshot.empty) return;
+      if (snapshot.empty) {
+        console.log('snapshot empty');
+        setTodos([]);
+        return;
+      };
       const todos = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
       console.log('todos', Date(), todos);
       setTodos(todos);
@@ -135,6 +146,7 @@ export default function Index() {
           style={styles.input}
           placeholder="New Todo"
           value={newTodo}
+          onSubmitEditing={addTodo}
           onChangeText={setNewTodo}
         />
         <TouchableOpacity style={styles.addButton} onPress={addTodo}>

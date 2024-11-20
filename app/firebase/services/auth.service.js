@@ -10,7 +10,7 @@ class AuthService {
   }
 
   async initializeWeb() {
-    const { 
+    const {
       getAuth,
       signInWithEmailAndPassword,
       createUserWithEmailAndPassword,
@@ -18,7 +18,7 @@ class AuthService {
       getIdToken
     } = await import('firebase/auth');
     const { app } = await import('../config/firebase.web');
-    
+
     this.auth = getAuth(app);
     this.signInWithEmailAndPassword = signInWithEmailAndPassword;
     this.createUserWithEmailAndPassword = createUserWithEmailAndPassword;

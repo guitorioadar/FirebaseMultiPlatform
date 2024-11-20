@@ -60,9 +60,9 @@ class AnalyticsService {
             }
 
             if (Platform.OS === 'web') {
-                await this.logEvent(this.analytics, eventName, params);
+                await this.logEvent(this.analytics, Platform.OS + '_' + eventName, params);
             } else {
-                await this.analytics.logEvent(eventName, params);
+                await this.analytics.logEvent(Platform.OS + '_' + eventName, params);
             }
         } catch (error) {
             console.error('Analytics error:', error);
