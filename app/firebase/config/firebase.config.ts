@@ -1,4 +1,6 @@
-export const firebaseConfig = {
+import { FirebaseConfig } from '../types/firebase.types';
+
+export const firebaseConfig: FirebaseConfig = {
     apiKey: "AIzaSyC9cQ3IaIRer6U0MFATGH_cYL-tV5By3Ww",
     authDomain: "fir-multplatform.firebaseapp.com",
     projectId: "fir-multplatform",

@@ -9,9 +9,9 @@ export {
     doc,
     addDoc,
     deleteDoc,
-    getDocuments,
     orderBy,
     limit,
     startAfter,
     endBefore,
 } from './services/firestore.service';
+export type * from './types/firebase.types';

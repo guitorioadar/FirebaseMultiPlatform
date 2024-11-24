@@ -8,12 +8,11 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
-import { addDoc, analyticsService, authService, collection, deleteDoc, firestoreService, getDocs, getDocuments, orderBy, query, where } from './firebase';
+import { addDoc, analyticsService, authService, collection, deleteDoc, getDocs, orderBy, query, where } from './firebase';
 import { User } from 'firebase/auth';
 
 export default function Index() {
   const [email, setEmail] = useState<string>(Platform.OS === 'web' ? 'wasi@orchid.co.nz' : Platform.OS === 'ios' ? 'wasisadman.cse@gmail.com' : 'guitorioadar@gmail.com');
-  // const [email, setEmail] = useState<string>('guitorioadar@gmail.com');
   const [password, setPassword] = useState<string>('123456');
   const [user, setUser] = useState<User | null>(null);
   const [todos, setTodos] = useState<any[]>([]);
@@ -27,9 +26,15 @@ export default function Index() {
 
   const handleLogin = async () => {
     try {
-      await authService.login(email, password);
-      fetchTodos();
-      analyticsService.logEvents('login', { email, password });
+      authService.login(email, password)
+        .then(() => {
+          fetchTodos();
+          analyticsService.logEvents('login', { email, password });
+        })
+        .catch((error: any) => {
+          console.error('Login error:', error);
+          alert(error.message);
+        });
     } catch (error) {
       console.error('Login error:', error);
     }
