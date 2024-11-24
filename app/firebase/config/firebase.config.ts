@@ -1,4 +1,12 @@
-import { FirebaseConfig } from '../types/firebase.types';
+export interface FirebaseConfig {
+    apiKey: string;
+    authDomain: string;
+    projectId: string;
+    storageBucket: string;
+    messagingSenderId: string;
+    appId: string;
+    measurementId?: string;
+}
 
 export const firebaseConfig: FirebaseConfig = {
     apiKey: "AIzaSyC9cQ3IaIRer6U0MFATGH_cYL-tV5By3Ww",

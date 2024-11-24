@@ -14,4 +14,3 @@ export {
     startAfter,
     endBefore,
 } from './services/firestore.service';
-export type * from './types/firebase.types';

@@ -1,16 +1,22 @@
+import { getAnalytics, Analytics } from 'firebase/analytics';
+import type analytics from '@react-native-firebase/analytics';
 import { Platform } from 'react-native';
 
+type WebAnalytics = ReturnType<typeof getAnalytics>;
+type NativeAnalytics = ReturnType<typeof analytics>;
+
 class AnalyticsService {
+    analytics!: WebAnalytics | NativeAnalytics;
+    logEvent!:
+        | ((analytics: WebAnalytics, eventName: string, params?: any) => void)
+        | ((eventName: string, params?: any) => Promise<void>);
+
     constructor() {
-        this.isInitialized = false;
-        this.initializeAttempts = 0;
-        this.maxAttempts = 5;
         this.initialize();
     }
 
     async initialize() {
         if (Platform.OS === 'web') {
-            // this.attemptWebInitialization();
             this.initializeWeb();
         } else {
             this.initializeNative();
@@ -52,17 +58,20 @@ class AnalyticsService {
         }
     }
 
-    async logEvents(eventName, params = {}) {
-        try {
-            if (!this.analytics) {
-                console.log('Analytics not initialized');
-                return;
-            }
+    async logEvents(eventName: string, params = {}) {
+        if (!this.analytics) return;
 
+        const prefixedEventName = `${Platform.OS}_${eventName}`;
+        
+        try {
             if (Platform.OS === 'web') {
-                await this.logEvent(this.analytics, Platform.OS + '_' + eventName, params);
+                (this.logEvent as (analytics: WebAnalytics, eventName: string, params?: any) => void)(
+                    this.analytics as WebAnalytics,
+                    prefixedEventName,
+                    params
+                );
             } else {
-                await this.analytics.logEvent(Platform.OS + '_' + eventName, params);
+                await (this.analytics as NativeAnalytics).logEvent(prefixedEventName, params);
             }
         } catch (error) {
             console.error('Analytics error:', error);
