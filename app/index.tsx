@@ -8,25 +8,31 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
-import { addDoc, analyticsService, authService, collection, deleteDoc, getDocs, orderBy, query, where } from './firebase';
-import { User } from 'firebase/auth';
+import { addDoc, analyticsService, collection, deleteDoc, getDocs, login, logout, onAuthStateChanged, orderBy, query, register, User, where } from './firebase';
+
+interface Todo {
+  id: string;
+  text: string;
+  userId: string;
+  completed: boolean;
+  createdAt: Date;
+}
 
 export default function Index() {
   const [email, setEmail] = useState<string>(Platform.OS === 'web' ? 'wasi@orchid.co.nz' : Platform.OS === 'ios' ? 'wasisadman.cse@gmail.com' : 'guitorioadar@gmail.com');
   const [password, setPassword] = useState<string>('123456');
   const [user, setUser] = useState<User | null>(null);
-  const [todos, setTodos] = useState<any[]>([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodo, setNewTodo] = useState<string>('');
 
   useEffect(() => {
-    const unsubscribe = authService.auth?.onAuthStateChanged(setUser as any)
-
-    return () => unsubscribe && unsubscribe();
+    const unsubscribe = onAuthStateChanged((user) => setUser(user));
+    return () => unsubscribe();
   }, []);
 
   const handleLogin = async () => {
     try {
-      authService.login(email, password)
+      login(email, password)
         .then(() => {
           fetchTodos();
           analyticsService.logEvents('login', { email, password });
@@ -41,7 +47,7 @@ export default function Index() {
   };
 
   const handleRegister = async () => {
-    authService.register(email, password)
+    register(email, password)
       .then(() => {
         handleLogin();
       })
@@ -54,8 +60,15 @@ export default function Index() {
 
   const handleLogout = async () => {
     try {
-      await authService.logout();
-      analyticsService.logEvents('logout');
+      logout()
+        .then(() => {
+          analyticsService.logEvents('logout');
+        })
+        .catch((error: Error) => {
+          console.error('Logout error:', error);
+          alert(error.message);
+          analyticsService.logEvents('logout', { error: error.message });
+        });
     } catch (error) {
       console.error('Logout error:', error);
     }

@@ -1,126 +1,82 @@
 import { Platform } from 'react-native';
-
-// Web types
-import type {
-  Auth as WebAuth,
-  UserCredential as WebUserCredential,
-  User as WebUser
-} from 'firebase/auth';
-
-// Native types
+import type { Auth as WebAuth, User as WebUser } from 'firebase/auth';
 import type auth from '@react-native-firebase/auth';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 
-type NativeAuth = ReturnType<typeof auth>;
-type NativeUserCredential = FirebaseAuthTypes.UserCredential;
-type User = WebUser | FirebaseAuthTypes.User;
+export type NativeAuth = ReturnType<typeof auth>;
+export type User = WebUser | FirebaseAuthTypes.User;
 
-class AuthService {
-  auth!: WebAuth | NativeAuth;
-  signInWithEmailAndPassword!:
-    | ((auth: WebAuth, email: string, password: string) => Promise<WebUserCredential>)
-    | ((email: string, password: string) => Promise<NativeUserCredential>);
-  createUserWithEmailAndPassword!:
-    | ((auth: WebAuth, email: string, password: string) => Promise<WebUserCredential>)
-    | ((email: string, password: string) => Promise<NativeUserCredential>);
-  signOut!: ((auth: WebAuth) => Promise<void>) | (() => Promise<void>);
-  getIdToken!: () => Promise<string>;
+let authInstance: WebAuth | NativeAuth;
 
-  constructor() {
-    if (Platform.OS === 'web') {
-      this.initializeWeb();
-    } else {
-      this.initializeNative();
-    }
-  }
-
-  async initializeWeb(): Promise<void> {
-    const {
-      getAuth,
-      signInWithEmailAndPassword,
-      createUserWithEmailAndPassword,
-      signOut,
-    } = await import('firebase/auth');
+const initializeAuth = async () => {
+  if (Platform.OS === 'web') {
+    const { getAuth } = await import('firebase/auth');
     const { app } = await import('../config/firebase.web');
-
-    this.auth = getAuth(app);
-    this.signInWithEmailAndPassword = signInWithEmailAndPassword;
-    this.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
-    this.signOut = signOut;
-    this.getIdToken = () => this.auth.currentUser?.getIdToken() ?? Promise.reject(new Error('No user logged in'));
-  }
-
-  async initializeNative(): Promise<void> {
+    authInstance = getAuth(app);
+  } else {
     const auth = await import('@react-native-firebase/auth');
-    const authInstance = auth.default();
-    this.auth = authInstance;
-    this.signInWithEmailAndPassword = (email: string, password: string) => authInstance.signInWithEmailAndPassword(email, password);
-    this.createUserWithEmailAndPassword = (email: string, password: string) => authInstance.createUserWithEmailAndPassword(email, password);
-    this.signOut = () => authInstance.signOut();
-    this.getIdToken = () => this.auth.currentUser?.getIdToken() ?? Promise.reject(new Error('No user logged in'));
+    authInstance = auth.default();
   }
+  return authInstance;
+};
 
-  async login(email: string, password: string): Promise<User> {
-    try {
-      let result;
-      if (Platform.OS === 'web') {
-        result = await (this.signInWithEmailAndPassword as any)(this.auth, email, password);
-      } else {
-        result = await (this.signInWithEmailAndPassword as any)(email, password);
-      }
+export const login = async (email: string, password: string): Promise<User> => {
+  console.log('login', email, password);
+  try {
+    if (Platform.OS === 'web') {
+      const { signInWithEmailAndPassword } = await import('firebase/auth');
+      const result = await signInWithEmailAndPassword(authInstance as WebAuth, email, password);
       return result.user;
-    } catch (error) {
-      const typedError = error as { code?: string; message: string };
-      const errorMessage = typedError.message
-        .replace(/\[.*?\]\s*/, '')
-        .replace(/\.$/, '');
-      throw new Error(errorMessage);
-    }
-  }
-
-  async register(email: string, password: string): Promise<User> {
-    try {
-      let result;
-      if (Platform.OS === 'web') {
-        result = await (this.createUserWithEmailAndPassword as any)(this.auth, email, password);
-      } else {
-        result = await (this.createUserWithEmailAndPassword as any)(email, password);
-      }
+    } else {
+      const result = await (authInstance as NativeAuth).signInWithEmailAndPassword(email, password);
       return result.user;
-    } catch (error) {
-      const typedError = error as { code?: string; message: string };
-      const errorMessage = typedError.message
-        .replace(/\[.*?\]\s*/, '')
-        .replace(/\.$/, '');
-      throw new Error(errorMessage);
     }
+  } catch (error: any) {
+    throw new Error(error.message.replace(/\[.*?\]\s*/, '').replace(/\.$/, ''));
   }
+};
 
-  async logout(): Promise<void> {
-    try {
-      if (Platform.OS === 'web') {
-        await (this.signOut as any)(this.auth);
-      } else {
-        await (this.signOut as any)();
-      }
-    } catch (error) {
-      const typedError = error as Error;
-      throw new Error(typedError.message);
+export const register = async (email: string, password: string): Promise<User> => {
+  try {
+    if (Platform.OS === 'web') {
+      const { createUserWithEmailAndPassword } = await import('firebase/auth');
+      const result = await createUserWithEmailAndPassword(authInstance as WebAuth, email, password);
+      return result.user;
+    } else {
+      const result = await (authInstance as NativeAuth).createUserWithEmailAndPassword(email, password);
+      return result.user;
     }
+  } catch (error: any) {
+    throw new Error(error.message.replace(/\[.*?\]\s*/, '').replace(/\.$/, ''));
   }
+};
 
-  async getIdTokenOfCurrentUser(): Promise<string> {
-    try {
-      return await this.getIdToken();
-    } catch (error) {
-      const typedError = error as Error;
-      throw new Error(typedError.message);
+export const logout = async (): Promise<void> => {
+  try {
+    if (Platform.OS === 'web') {
+      const { signOut } = await import('firebase/auth');
+      await signOut(authInstance as WebAuth);
+    } else {
+      await (authInstance as NativeAuth).signOut();
     }
+  } catch (error: any) {
+    throw new Error(error.message);
   }
+};
 
-  get currentUser(): User | null {
-    return this.auth.currentUser;
-  }
-}
+export const onAuthStateChanged = (callback: (user: User | null) => void) => {
+  return authInstance.onAuthStateChanged(callback);
+};
 
-export const authService = new AuthService();
+export const getCurrentUser = (): User | null => {
+  return authInstance.currentUser;
+};
+
+export const getIdToken = async (): Promise<string> => {
+  const token = await authInstance.currentUser?.getIdToken();
+  if (!token) throw new Error('No user logged in');
+  return token;
+};
+
+// Initialize auth on import
+initializeAuth();
