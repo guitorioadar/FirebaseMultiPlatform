@@ -34,7 +34,7 @@ class AnalyticsService {
                 this.logEvent = logEvent;
                 console.log('Web analytics initialized successfully');
             } else {
-                console.log('Analytics not supported in this environment');
+                console.log('Analytics not supported in this web environment');
             }
         } catch (error) {
             console.error('Failed to initialize web analytics:', error);
