@@ -1,6 +1,27 @@
 import { Platform } from 'react-native';
 
+import { DocumentData, DocumentSnapshot, Firestore as WebFirestore } from 'firebase/firestore';
+import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+
+
 class FirestoreService {
+    db!: WebFirestore | FirebaseFirestoreTypes.Module;
+    _collection!: Function;
+    _query!: Function;
+    _where!: Function;
+    _getDocs!: Function;
+    _addDoc!: Function;
+    _doc!: Function;
+    _getDoc!: Function;
+    _setDoc!: Function;
+    _deleteDoc!: Function;
+    _orderBy!: Function;
+    _limit!: Function;
+    _startAt!: Function;
+    _startAfter!: Function;
+    _endAt!: Function;
+    _endBefore!: Function;
+
     constructor() {
         if (Platform.OS === 'web') {
             this.initializeWeb();
@@ -51,60 +72,65 @@ class FirestoreService {
         const { db } = await import('../config/firebase.native');
         this.db = db;
     }
+
+    getNativeDB(): FirebaseFirestoreTypes.Module {
+        return this.db as FirebaseFirestoreTypes.Module;
+    }
 }
 
 const firestoreService = new FirestoreService();
 
-export const collection = (collectionName) => {
+
+export const collection = (collectionName: string) => {
     if (Platform.OS === 'web') {
         return firestoreService._collection(firestoreService.db, collectionName);
     }
-    return firestoreService.db.collection(collectionName);
+    return firestoreService.getNativeDB().collection(collectionName);
 };
 
-export const orderBy = (field, direction = 'asc') => {
+export const orderBy = (field: string, direction: 'asc' | 'desc' = 'asc') => {
     if (Platform.OS === 'web') {
         return firestoreService._orderBy(field, direction);
     }
     return ['orderBy', field, direction];
 };
 
-export const limit = (limitCount) => {
+export const limit = (limitCount: number) => {
     if (Platform.OS === 'web') {
         return firestoreService._limit(limitCount);
     }
     return ['limit', limitCount];
 };
 
-export const startAt = (...args) => {
+export const startAt = (...args: any[]) => {
     if (Platform.OS === 'web') {
         return firestoreService._startAt(...args);
     }
     return ['startAt', ...args];
 };
 
-export const startAfter = (...args) => {
+export const startAfter = (...args: any[]) => {
     if (Platform.OS === 'web') {
         return firestoreService._startAfter(...args);
     }
     return ['startAfter', ...args];
 };
 
-export const endAt = (...args) => {
+export const endAt = (...args: any[]) => {
     if (Platform.OS === 'web') {
         return firestoreService._endAt(...args);
     }
     return ['endAt', ...args];
 };
 
-export const endBefore = (...args) => {
+export const endBefore = (...args: any[]) => {
     if (Platform.OS === 'web') {
         return firestoreService._endBefore(...args);
     }
     return ['endBefore', ...args];
 };
 
-export const query = (collectionRef, ...queryConstraints) => {
+export const query = (collectionRef: any, ...queryConstraints: any[]) => {
     if (Platform.OS === 'web') {
         return firestoreService._query(collectionRef, ...queryConstraints);
     }
@@ -136,25 +162,23 @@ export const query = (collectionRef, ...queryConstraints) => {
                     ref = ref.endBefore(...args);
                     break;
                 default:
-                    // For where clauses without explicit type
                     ref = ref.where(...constraint);
             }
         } else {
-            // Handle non-array constraints (direct Firebase Web SDK format)
             ref = ref.where(...Object.values(constraint));
         }
     });
     return ref;
 };
 
-export const where = (field, operator, value) => {
+export const where = (field: string, operator: string, value: any) => {
     if (Platform.OS === 'web') {
         return firestoreService._where(field, operator, value);
     }
     return [field, operator, value];
 };
 
-export const getDocs = async (query) => {
+export const getDocs = async (query: any) => {
     try {
         let snapshot;
         if (Platform.OS === 'web') {
@@ -162,11 +186,10 @@ export const getDocs = async (query) => {
         } else {
             snapshot = await query.get();
         }
-        console.log('snapshot', snapshot);
         return {
             empty: snapshot.empty,
             size: snapshot.size,
-            docs: snapshot.docs.map(doc => ({
+            docs: snapshot.docs.map((doc: DocumentSnapshot | FirebaseFirestoreTypes.DocumentSnapshot) => ({
                 id: doc.id,
                 data: () => doc.data(),
                 exists: doc.exists
@@ -178,27 +201,25 @@ export const getDocs = async (query) => {
     }
 };
 
-export const doc = (collectionName, docId) => {
+export const doc = (collectionName: string, docId: string) => {
     if (Platform.OS === 'web') {
         return firestoreService._doc(firestoreService.db, collectionName, docId);
     }
-    return firestoreService.db.collection(collectionName).doc(docId);
+    return firestoreService.getNativeDB().collection(collectionName).doc(docId);
 };
 
-export const addDoc = async (collectionName, data) => {
+export const addDoc = async (collectionName: string, data: DocumentData | FirebaseFirestoreTypes.DocumentData) => {
     if (Platform.OS === 'web') {
-        // return firestoreService._addDoc(collection(collectionName), data);
         return firestoreService._addDoc(collection(collectionName), data);
     }
-    return firestoreService.db.collection(collectionName).add(data);
+    return firestoreService.getNativeDB().collection(collectionName).add(data);
 };
 
-export const deleteDoc = async (collectionName, docId) => {
+export const deleteDoc = async (collectionName: string, docId: string) => {
     if (Platform.OS === 'web') {
         return firestoreService._deleteDoc(doc(collectionName, docId));
     }
-    return firestoreService.db.collection(collectionName).doc(docId).delete();
+    return firestoreService.getNativeDB().collection(collectionName).doc(docId).delete();
 };
-
 
 export { firestoreService };

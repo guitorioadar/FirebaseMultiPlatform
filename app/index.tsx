@@ -85,16 +85,16 @@ export default function Index() {
     getDocs(query(
       collection('todos'),
       where('userId', '==', user.uid),
-      orderBy('text', 'desc'),
+      orderBy('text', 'asc'),
     )).then((snapshot) => {
-      console.log('snapshot', snapshot);
+      console.log('getDocs snapshot', snapshot);
       if (snapshot.empty) {
-        console.log('snapshot empty');
+        console.log('getDocs snapshot empty');
         setTodos([]);
         return;
       };
       const todos = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
-      console.log('todos', Date(), todos);
+      console.log('getDocs todos', Date(), todos);
       setTodos(todos);
     });
   };
