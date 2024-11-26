@@ -75,6 +75,10 @@ export default function Index() {
   };
 
   const addTodo = async () => {
+    if (!newTodo) {
+      alert('Todo text is required');
+      return;
+    }
     try {
       addDoc('todos', {
         text: newTodo,
