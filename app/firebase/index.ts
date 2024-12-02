@@ -7,7 +7,7 @@ export {
     onAuthStateChanged,
     getCurrentUser
 } from './services/auth.service';
-export { analyticsService } from './services/analytics.service';
+export { logEvents } from './services/analytics.service';
 export {
     collection,
     query,

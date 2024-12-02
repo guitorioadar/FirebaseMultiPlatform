@@ -57,6 +57,7 @@ const createAnalyticsService = () => {
         if (!analytics) return;
 
         const prefixedEventName = `${Platform.OS}_${eventName}`;
+        console.log('prefixedEventName', prefixedEventName);
 
         try {
             if (Platform.OS === 'web' && webLogEvent) {
@@ -71,7 +72,9 @@ const createAnalyticsService = () => {
 
     initialize();
 
-    return { logEvents };
+    return {
+        logEvents
+    };
 };
 
-export const analyticsService = createAnalyticsService();
+export const { logEvents } = createAnalyticsService();

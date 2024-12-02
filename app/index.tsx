@@ -8,7 +8,7 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
-import { addDoc, analyticsService, collection, deleteDoc, getDocs, login, logout, onAuthStateChanged, orderBy, query, register, User, where } from './firebase';
+import { addDoc, logEvents, collection, deleteDoc, getDocs, login, logout, onAuthStateChanged, orderBy, query, register, User, where } from './firebase';
 
 interface Todo {
   id: string;
@@ -35,9 +35,9 @@ export default function Index() {
       login(email, password)
         .then(() => {
           fetchTodos();
-          analyticsService.logEvents('login', { email, password });
+          logEvents('login', { email, password });
         })
-        .catch((error: any) => {
+        .catch((error: Error) => {
           console.error('Login error:', error);
           alert(error.message);
         });
@@ -51,23 +51,23 @@ export default function Index() {
       .then(() => {
         handleLogin();
       })
-      .catch((error: any) => {
+      .catch((error: Error) => {
         console.error('Register error:', error);
         alert(error.message);
       });
-    analyticsService.logEvents('register', { email, password });
+    logEvents('register', { email, password });
   };
 
   const handleLogout = async () => {
     try {
       logout()
         .then(() => {
-          analyticsService.logEvents('logout');
+          logEvents('logout');
         })
         .catch((error: Error) => {
           console.error('Logout error:', error);
           alert(error.message);
-          analyticsService.logEvents('logout', { error: error.message });
+          logEvents('logout', { error: error.message });
         });
     } catch (error) {
       console.error('Logout error:', error);
@@ -86,7 +86,7 @@ export default function Index() {
         completed: false,
         createdAt: new Date()
       });
-      analyticsService.logEvents('add_todo', { text: newTodo });
+      logEvents('add_todo', { text: newTodo });
       setNewTodo('');
       fetchTodos();
     } catch (error) {
@@ -110,15 +110,15 @@ export default function Index() {
         setTodos([]);
         return;
       };
-      const todos = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+      const todos = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       console.log('getDocs todos', Date(), todos);
-      setTodos(todos);
+      setTodos(todos as Todo[]);
     });
   };
 
   const handleDeleteTodo = async (id: string) => {
     await deleteDoc('todos', id);
-    analyticsService.logEvents('delete_todo', { id, userId: user?.uid, text: todos.find(todo => todo.id === id)?.text });
+    logEvents('delete_todo', { id, userId: user?.uid, text: todos.find(todo => todo.id === id)?.text });
     fetchTodos();
   };
 

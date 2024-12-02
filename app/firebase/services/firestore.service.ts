@@ -1,6 +1,11 @@
 import { Platform } from 'react-native';
-import { DocumentData, DocumentSnapshot, Firestore as WebFirestore } from 'firebase/firestore';
+import { CollectionReference, DocumentData, DocumentSnapshot, Query, QueryConstraint, QuerySnapshot, Firestore as WebFirestore } from 'firebase/firestore';
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+
+type QuerySnapshotArg =
+    DocumentSnapshot<DocumentData> |
+    FirebaseFirestoreTypes.DocumentSnapshot<FirebaseFirestoreTypes.DocumentData> |
+    unknown[];
 
 type WebFunctions = {
     collection: Function;
@@ -22,7 +27,7 @@ type WebFunctions = {
 
 const createFirestoreService = () => {
     let db: WebFirestore | FirebaseFirestoreTypes.Module;
-    
+
     let webFunctions: WebFunctions = {
         collection: () => { throw new Error('Firestore not initialized') },
         query: () => { throw new Error('Firestore not initialized') },
@@ -101,82 +106,86 @@ const createFirestoreService = () => {
             }
             return ['limit', limitCount];
         },
-        startAt: (...args: any[]) => {
+        startAt: (snapshot: QuerySnapshotArg) => {
             if (Platform.OS === 'web') {
-                return webFunctions.startAt(...args);
+                return webFunctions.startAt(snapshot);
             }
-            return ['startAt', ...args];
+            return ['startAt', snapshot];
         },
-        startAfter: (snapshot: any) => {
+        startAfter: (snapshot: QuerySnapshotArg) => {
             if (Platform.OS === 'web') {
                 return webFunctions.startAfter(snapshot);
             }
             return ['startAfter', snapshot];
         },
-        endAt: (...args: any[]) => {
+        endAt: (snapshot: QuerySnapshotArg) => {
             if (Platform.OS === 'web') {
-                return webFunctions.endAt(...args);
+                return webFunctions.endAt(snapshot);
             }
-            return ['endAt', ...args];
+            return ['endAt', snapshot];
         },
-        endBefore: (snapshot: any) => {
+        endBefore: (snapshot: QuerySnapshotArg) => {
             if (Platform.OS === 'web') {
                 return webFunctions.endBefore(snapshot);
             }
             return ['endBefore', snapshot];
         },
-        query: (collectionRef: any, ...queryConstraints: any[]) => {
+        query: (
+            collectionRef: CollectionReference<DocumentData> | FirebaseFirestoreTypes.CollectionReference<FirebaseFirestoreTypes.DocumentData>,
+            ...queryConstraints: QueryConstraint[]
+        ) => {
             if (Platform.OS === 'web') {
                 return webFunctions.query(collectionRef, ...queryConstraints);
             }
-            let ref = collectionRef;
+            let ref = collectionRef as FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>;
             queryConstraints.forEach(constraint => {
+                console.log('constraint', constraint);
                 if (Array.isArray(constraint)) {
                     const [type, ...args] = constraint;
                     switch (type) {
                         case 'orderBy':
-                            ref = ref.orderBy(...args);
+                            ref = ref.orderBy(args[0], args[1]);
                             break;
                         case 'limit':
-                            ref = ref.limit(...args);
+                            ref = ref.limit(args[0]);
                             break;
                         case 'where':
-                            ref = ref.where(...args);
+                            ref = ref.where(args[0], args[1], args[2]);
                             break;
                         case 'startAt':
-                            ref = ref.startAt(...args);
+                            ref = ref.startAt(args[0], args[1]);
                             break;
                         case 'startAfter':
-                            ref = ref.startAfter(...args);
+                            ref = ref.startAfter(args[0]);
                             break;
                         case 'endAt':
-                            ref = ref.endAt(...args);
+                            ref = ref.endAt(args[0], args[1]);
                             break;
                         case 'endBefore':
-                            ref = ref.endBefore(...args);
+                            ref = ref.endBefore(args[0]);
                             break;
                         default:
-                            ref = ref.where(...constraint);
+                            ref = ref.where(constraint[0], constraint[1], constraint[2]);
                     }
                 } else {
-                    ref = ref.where(...Object.values(constraint));
+                    console.warn('Implement custom constraint logic here', constraint);
                 }
             });
             return ref;
         },
-        where: (field: string, operator: string, value: any) => {
+        where: (field: string, operator: string, value: unknown) => {
             if (Platform.OS === 'web') {
                 return webFunctions.where(field, operator, value);
             }
             return [field, operator, value];
         },
-        getDocs: async (query: any) => {
+        getDocs: async (query: Query<DocumentData> | FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>) => {
             try {
                 let snapshot;
                 if (Platform.OS === 'web') {
                     snapshot = await webFunctions.getDocs(query);
                 } else {
-                    snapshot = await query.get();
+                    snapshot = await (query as FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>).get();
                 }
 
                 return {
@@ -187,7 +196,7 @@ const createFirestoreService = () => {
                         data: () => doc.data(),
                         exists: doc.exists
                     }))
-                };
+                } as QuerySnapshot<DocumentData> | FirebaseFirestoreTypes.QuerySnapshot<FirebaseFirestoreTypes.DocumentData>;
             } catch (error) {
                 console.error('Error in getDocs:', error);
                 throw error;
