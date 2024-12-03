@@ -1,11 +1,15 @@
 import { Platform } from 'react-native';
-import { CollectionReference, DocumentData, DocumentSnapshot, Query, QueryConstraint, QuerySnapshot, Firestore as WebFirestore } from 'firebase/firestore';
+import { CollectionReference, DocumentData, DocumentSnapshot, Query, QueryConstraint, QueryFieldFilterConstraint, QuerySnapshot, Firestore as WebFirestore } from 'firebase/firestore';
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 
 type QuerySnapshotArg =
     DocumentSnapshot<DocumentData> |
     FirebaseFirestoreTypes.DocumentSnapshot<FirebaseFirestoreTypes.DocumentData> |
     unknown[];
+
+type CollectionReferenceArg =
+    CollectionReference<DocumentData> |
+    FirebaseFirestoreTypes.CollectionReference<FirebaseFirestoreTypes.DocumentData>
 
 type WebFunctions = {
     collection: Function;
@@ -88,7 +92,7 @@ const createFirestoreService = () => {
 
     return {
         getNativeDB,
-        collection: (collectionName: string) => {
+        collection: (collectionName: string): CollectionReferenceArg => {
             if (Platform.OS === 'web') {
                 return webFunctions.collection(db, collectionName);
             }
@@ -133,7 +137,7 @@ const createFirestoreService = () => {
         query: (
             collectionRef: CollectionReference<DocumentData> | FirebaseFirestoreTypes.CollectionReference<FirebaseFirestoreTypes.DocumentData>,
             ...queryConstraints: QueryConstraint[]
-        ) => {
+        ): Query<DocumentData> | FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData> => {
             if (Platform.OS === 'web') {
                 return webFunctions.query(collectionRef, ...queryConstraints);
             }
