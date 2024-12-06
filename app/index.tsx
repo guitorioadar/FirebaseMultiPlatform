@@ -106,23 +106,17 @@ export default function Index() {
   };
 
   const fetchTodos = async () => {
-    // console.log('fetchTodos', Date());
-    // console.log('user', user);
-    // console.log('user.uid', user?.uid);
     if (!user) return;
     getDocs(query(
-      collection('todos'),
+      collection(firestore, 'todos'),
       where('userId', '==', user.uid),
       orderBy('text', 'asc'),
     )).then((snapshot) => {
-      // console.log('getDocs snapshot', snapshot);
       if (snapshot.empty) {
-        // console.log('getDocs snapshot empty');
         setTodos([]);
         return;
       };
       const todos = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      // console.log('getDocs todos', Date(), todos);
       setTodos(todos as Todo[]);
     });
   };
@@ -145,10 +139,10 @@ export default function Index() {
   useEffect(() => {
     if (user) {
       fetchTodos();
-      
+
       // Listen to server info changes
       const unsubscribeServerInfo = onSnapshot(
-        doc('global', 'serverInfo'),
+        doc(firestore, 'global', 'serverInfo'),
         (snapshot) => {
           console.log('onSnapshot updated', Date(), snapshot.data());
           setServerInfo(snapshot.data() as ServerInfo);

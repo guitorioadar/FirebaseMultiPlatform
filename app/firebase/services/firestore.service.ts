@@ -32,6 +32,7 @@ type WebFunctions = {
 
 type QueryConstraintMultiPlatformType = QueryConstraint | [string, string, unknown] | [string, unknown] | [string, string, string, unknown];
 
+let firestoreInstance: WebFirestore | FirebaseFirestoreTypes.Module;
 
 const createFirestoreService = () => {
     let db: WebFirestore | FirebaseFirestoreTypes.Module;
@@ -65,6 +66,7 @@ const createFirestoreService = () => {
         const { db: webDb } = await import('../config/firebase.web');
 
         db = webDb;
+        firestoreInstance = db as WebFirestore;
         webFunctions = {
             collection, query, where, getDocs,
             addDoc, doc, deleteDoc, orderBy,
@@ -78,6 +80,7 @@ const createFirestoreService = () => {
     const initializeNative = async () => {
         const { db: nativeDb } = await import('../config/firebase.native');
         db = nativeDb;
+        firestoreInstance = db as FirebaseFirestoreTypes.Module;
     };
 
     const getNativeDB = (): FirebaseFirestoreTypes.Module => {
@@ -95,28 +98,10 @@ const createFirestoreService = () => {
         }
     };
 
-    const firestore = () => {
-        // first check if db is initialized
-        if (!db) {
-            console.log('Firestore not initialized');
-            return;
-        }
-        if (Platform.OS === 'web') {
-            return db as WebFirestore;
-        }
-        return db as FirebaseFirestoreTypes.Module;
-    }
-
     initialize();
 
     return {
-        firestore,
-        collection: (collectionName: string): CollectionReferenceArg => {
-            if (Platform.OS === 'web') {
-                return webFunctions.collection(db, collectionName);
-            }
-            return getNativeDB().collection(collectionName);
-        },
+        firestore: firestoreInstance,
         orderBy: (field: string, direction: 'asc' | 'desc' = 'asc'): QueryConstraint | [string, string, 'asc' | 'desc'] => {
             if (Platform.OS === 'web') {
                 return webFunctions.orderBy(field, direction);
@@ -202,6 +187,12 @@ const createFirestoreService = () => {
             }
             return [field, operator, value];
         },
+        collection: (firestore: WebFirestore | FirebaseFirestoreTypes.Module, collectionName: string): CollectionReferenceArg => {
+            if (Platform.OS === 'web') {
+                return webFunctions.collection(firestore || db, collectionName);
+            }
+            return getNativeDB().collection(collectionName);
+        },
         getDocs: async (query: Query<DocumentData> | FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>): Promise<QuerySnapshot<DocumentData> | FirebaseFirestoreTypes.QuerySnapshot<FirebaseFirestoreTypes.DocumentData>> => {
             try {
                 let snapshot;
@@ -226,18 +217,14 @@ const createFirestoreService = () => {
             }
         },
         getDoc: async (docRef: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>): Promise<DocumentSnapshot<DocumentData> | FirebaseFirestoreTypes.DocumentSnapshot<FirebaseFirestoreTypes.DocumentData>> => {
-            // console.log('inside getDoc', docRef);
             if (Platform.OS === 'web') {
-                // const docData = webFunctions.getDoc(docRef);
-                // console.log('getDoc docData', docData);
-                // return docData;
                 return webFunctions.getDoc(docRef);
             }
             return (docRef as FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>).get();
         },
-        doc: (collectionName: string, docId: string): DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData> => {
+        doc: (firestore: WebFirestore | FirebaseFirestoreTypes.Module, collectionName: string, docId: string): DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData> => {
             if (Platform.OS === 'web') {
-                return webFunctions.doc(db, collectionName, docId);
+                return webFunctions.doc(firestore || db, collectionName, docId);
             }
             return getNativeDB().collection(collectionName).doc(docId);
         },
@@ -256,13 +243,13 @@ const createFirestoreService = () => {
             return getNativeDB().collection(collectionName).doc(docId).delete();
         },
         onSnapshot: (
-            docOrQuery: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference,
+            doc: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference,
             callback: (snapshot: DocumentSnapshot<DocumentData> | FirebaseFirestoreTypes.DocumentSnapshot<FirebaseFirestoreTypes.DocumentData>) => void
         ): (() => void) => {
             if (Platform.OS === 'web') {
-                return webFunctions.onSnapshot(docOrQuery, callback);
+                return webFunctions.onSnapshot(doc, callback);
             }
-            return (docOrQuery as FirebaseFirestoreTypes.DocumentReference).onSnapshot(callback);
+            return (doc as FirebaseFirestoreTypes.DocumentReference).onSnapshot(callback);
         },
     };
 };
