@@ -9,10 +9,12 @@ export {
 } from './services/auth.service';
 export { logEvents } from './services/analytics.service';
 export {
+    firestore,
     collection,
     query,
     where,
     getDocs,
+    getDoc,
     doc,
     addDoc,
     deleteDoc,
@@ -20,4 +22,5 @@ export {
     limit,
     startAfter,
     endBefore,
+    onSnapshot
 } from './services/firestore.service';

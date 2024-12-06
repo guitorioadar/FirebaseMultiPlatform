@@ -8,7 +8,7 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
-import { addDoc, logEvents, collection, deleteDoc, getDocs, login, logout, onAuthStateChanged, orderBy, query, register, User, where } from './firebase';
+import { addDoc, logEvents, collection, deleteDoc, getDocs, login, logout, onAuthStateChanged, orderBy, query, register, User, where, getDoc, doc, firestore, onSnapshot } from './firebase';
 
 interface Todo {
   id: string;
@@ -18,12 +18,23 @@ interface Todo {
   createdAt: Date;
 }
 
+interface ServerInfo {
+  androidBuildAvailable: number;
+  androidBuildRequired: number;
+  iosBuildAvailable: number;
+  iosBuildRequired: number;
+  underMaintenance: boolean;
+  webBuildAvailable: number;
+  webBuildRequired: number;
+}
+
 export default function Index() {
   const [email, setEmail] = useState<string>(Platform.OS === 'web' ? 'wasi@orchid.co.nz' : Platform.OS === 'ios' ? 'wasisadman.cse@gmail.com' : 'guitorioadar@gmail.com');
   const [password, setPassword] = useState<string>('123456');
   const [user, setUser] = useState<User | null>(null);
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodo, setNewTodo] = useState<string>('');
+  const [serverInfo, setServerInfo] = useState<ServerInfo>();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged((user) => setUser(user));
@@ -95,23 +106,23 @@ export default function Index() {
   };
 
   const fetchTodos = async () => {
-    console.log('fetchTodos', Date());
-    console.log('user', user);
-    console.log('user.uid', user?.uid);
+    // console.log('fetchTodos', Date());
+    // console.log('user', user);
+    // console.log('user.uid', user?.uid);
     if (!user) return;
     getDocs(query(
       collection('todos'),
       where('userId', '==', user.uid),
       orderBy('text', 'asc'),
     )).then((snapshot) => {
-      console.log('getDocs snapshot', snapshot);
+      // console.log('getDocs snapshot', snapshot);
       if (snapshot.empty) {
-        console.log('getDocs snapshot empty');
+        // console.log('getDocs snapshot empty');
         setTodos([]);
         return;
       };
       const todos = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      console.log('getDocs todos', Date(), todos);
+      // console.log('getDocs todos', Date(), todos);
       setTodos(todos as Todo[]);
     });
   };
@@ -122,9 +133,28 @@ export default function Index() {
     fetchTodos();
   };
 
+  // const fetchServerInfo = async () => {
+  //   console.log('fetchServerInfo', Date());
+  //   getDoc(doc('global', 'serverInfo'))
+  //     .then((snapshot) => {
+  //       console.log('fetchServerInfo getDoc snapshot', Date(), snapshot.data());
+  //       setServerInfo(snapshot.data() as ServerInfo);
+  //     });
+  // };
+
   useEffect(() => {
     if (user) {
       fetchTodos();
+      
+      // Listen to server info changes
+      const unsubscribeServerInfo = onSnapshot(
+        doc('global', 'serverInfo'),
+        (snapshot) => {
+          console.log('onSnapshot updated', Date(), snapshot.data());
+          setServerInfo(snapshot.data() as ServerInfo);
+        }
+      );
+      return () => unsubscribeServerInfo();
     }
   }, [user]);
 
@@ -185,6 +215,14 @@ export default function Index() {
             </TouchableOpacity>
           </View>
         ))}
+        <View style={styles.serverInfo}>
+          <Text style={styles.serverInfoTitle}>Server Info With OnSnapshot</Text>
+          {
+            Object.entries(serverInfo || {}).map(([key, value]) => (
+              <Text key={key}>{key}: {value + ''}</Text>
+            ))
+          }
+        </View>
       </ScrollView>
     </View>
   );
@@ -256,4 +294,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     // flex: 1,
   },
+  serverInfo: {
+    marginTop: 20,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+  },
+  serverInfoTitle: {
+    fontSize: 18,
+    marginBottom: 10,
+  }
 });

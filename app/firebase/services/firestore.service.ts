@@ -27,6 +27,7 @@ type WebFunctions = {
     startAfter: Function;
     endAt: Function;
     endBefore: Function;
+    onSnapshot: Function;
 };
 
 type QueryConstraintMultiPlatformType = QueryConstraint | [string, string, unknown] | [string, unknown] | [string, string, string, unknown];
@@ -50,14 +51,16 @@ const createFirestoreService = () => {
         startAt: () => { throw new Error('Firestore not initialized') },
         startAfter: () => { throw new Error('Firestore not initialized') },
         endAt: () => { throw new Error('Firestore not initialized') },
-        endBefore: () => { throw new Error('Firestore not initialized') }
+        endBefore: () => { throw new Error('Firestore not initialized') },
+        onSnapshot: () => { throw new Error('Firestore not initialized') }
     };
 
     const initializeWeb = async () => {
         const {
             collection, query, where, getDocs,
             addDoc, doc, deleteDoc, orderBy,
-            limit, startAt, startAfter, endAt, endBefore
+            limit, startAt, startAfter, endAt, endBefore, getDoc,
+            onSnapshot
         } = await import('firebase/firestore');
         const { db: webDb } = await import('../config/firebase.web');
 
@@ -66,7 +69,8 @@ const createFirestoreService = () => {
             collection, query, where, getDocs,
             addDoc, doc, deleteDoc, orderBy,
             limit, startAt, startAfter, endAt, endBefore,
-            getDoc: () => { throw new Error('Not implemented') },
+            getDoc,
+            onSnapshot,
             setDoc: () => { throw new Error('Not implemented') }
         };
     };
@@ -91,10 +95,22 @@ const createFirestoreService = () => {
         }
     };
 
+    const firestore = () => {
+        // first check if db is initialized
+        if (!db) {
+            console.log('Firestore not initialized');
+            return;
+        }
+        if (Platform.OS === 'web') {
+            return db as WebFirestore;
+        }
+        return db as FirebaseFirestoreTypes.Module;
+    }
+
     initialize();
 
     return {
-        getNativeDB,
+        firestore,
         collection: (collectionName: string): CollectionReferenceArg => {
             if (Platform.OS === 'web') {
                 return webFunctions.collection(db, collectionName);
@@ -209,6 +225,16 @@ const createFirestoreService = () => {
                 throw error;
             }
         },
+        getDoc: async (docRef: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>): Promise<DocumentSnapshot<DocumentData> | FirebaseFirestoreTypes.DocumentSnapshot<FirebaseFirestoreTypes.DocumentData>> => {
+            // console.log('inside getDoc', docRef);
+            if (Platform.OS === 'web') {
+                // const docData = webFunctions.getDoc(docRef);
+                // console.log('getDoc docData', docData);
+                // return docData;
+                return webFunctions.getDoc(docRef);
+            }
+            return (docRef as FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>).get();
+        },
         doc: (collectionName: string, docId: string): DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData> => {
             if (Platform.OS === 'web') {
                 return webFunctions.doc(db, collectionName, docId);
@@ -228,15 +254,26 @@ const createFirestoreService = () => {
                 return webFunctions.deleteDoc(docRef);
             }
             return getNativeDB().collection(collectionName).doc(docId).delete();
-        }
+        },
+        onSnapshot: (
+            docOrQuery: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference,
+            callback: (snapshot: DocumentSnapshot<DocumentData> | FirebaseFirestoreTypes.DocumentSnapshot<FirebaseFirestoreTypes.DocumentData>) => void
+        ): (() => void) => {
+            if (Platform.OS === 'web') {
+                return webFunctions.onSnapshot(docOrQuery, callback);
+            }
+            return (docOrQuery as FirebaseFirestoreTypes.DocumentReference).onSnapshot(callback);
+        },
     };
 };
 
 export const {
+    firestore,
     collection,
     query,
     where,
     getDocs,
+    getDoc,
     doc,
     addDoc,
     deleteDoc,
@@ -244,4 +281,5 @@ export const {
     limit,
     startAfter,
     endBefore,
+    onSnapshot
 } = createFirestoreService();
