@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { CollectionReference, DocumentData, DocumentReference, DocumentSnapshot, FieldPath, Query, QueryConstraint, QueryConstraintType, QueryFieldFilterConstraint, QuerySnapshot, Firestore as WebFirestore, WhereFilterOp } from 'firebase/firestore';
+import { CollectionReference, DocumentData, DocumentReference, DocumentSnapshot, FieldPath, Query, QueryConstraint, QueryConstraintType, QueryFieldFilterConstraint, QuerySnapshot, Firestore as WebFirestore, WhereFilterOp, writeBatch as webWriteBatch, WriteBatch } from 'firebase/firestore';
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 
 type QuerySnapshotArg =
@@ -34,6 +34,23 @@ type QueryConstraintMultiPlatformType = QueryConstraint | [string, string, unkno
 
 let firestoreInstance: WebFirestore | FirebaseFirestoreTypes.Module;
 
+
+type BatchType = WriteBatch | FirebaseFirestoreTypes.WriteBatch;
+
+interface SplittableBatch {
+    set: (
+        documentRef: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference,
+        data: DocumentData | FirebaseFirestoreTypes.DocumentData,
+        options?: any
+    ) => void;
+    delete: (
+        documentRef: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference
+    ) => void;
+    commit: () => Promise<any>;
+    getBatches: () => BatchType[];
+}
+
+
 const createFirestoreService = () => {
     let db: WebFirestore | FirebaseFirestoreTypes.Module;
 
@@ -66,7 +83,7 @@ const createFirestoreService = () => {
         const { db: webDb } = await import('../config/firebase.web');
 
         db = webDb;
-        firestoreInstance = db as WebFirestore;
+        firestoreInstance = webDb;
         webFunctions = {
             collection, query, where, getDocs,
             addDoc, doc, deleteDoc, orderBy,
@@ -80,7 +97,7 @@ const createFirestoreService = () => {
     const initializeNative = async () => {
         const { db: nativeDb } = await import('../config/firebase.native');
         db = nativeDb;
-        firestoreInstance = db as FirebaseFirestoreTypes.Module;
+        firestoreInstance = nativeDb;
     };
 
     const getNativeDB = (): FirebaseFirestoreTypes.Module => {
@@ -251,6 +268,59 @@ const createFirestoreService = () => {
             }
             return (doc as FirebaseFirestoreTypes.DocumentReference).onSnapshot(callback);
         },
+        splittableBatch: (
+            firestore: WebFirestore | FirebaseFirestoreTypes.Module,
+            maxQueriesPerBatch = 20
+        ): SplittableBatch => {
+            console.log('firestore', firestore);
+            const createBatch = (): BatchType => {
+                if (Platform.OS === 'web') {
+                    return webWriteBatch((firestore || db) as WebFirestore);
+                }
+                return getNativeDB().batch();
+            };
+
+            const batches: BatchType[] = [createBatch()];
+            let count = 1;
+
+            const getBatch = (): BatchType => {
+                if (count > maxQueriesPerBatch) {
+                    batches.push(createBatch());
+                    count = 1;
+                } else {
+                    count++;
+                }
+                return batches[batches.length - 1];
+            };
+
+            return {
+                set: (documentRef, data, options?) => {
+                    const batch = getBatch();
+                    if (Platform.OS === 'web') {
+                        (batch as WriteBatch).set(documentRef as DocumentReference<DocumentData>, data, options);
+                    } else {
+                        // Native batch.set doesn't support options in the same way
+                        if (options?.merge) {
+                            (batch as FirebaseFirestoreTypes.WriteBatch).set(documentRef as FirebaseFirestoreTypes.DocumentReference, data, { merge: true });
+                        } else {
+                            (batch as FirebaseFirestoreTypes.WriteBatch).set(documentRef as FirebaseFirestoreTypes.DocumentReference, data);
+                        }
+                    }
+                },
+                delete: (documentRef) => {
+                    const batch = getBatch();
+                    if (Platform.OS === 'web') {
+                        (batch as WriteBatch).delete(documentRef as DocumentReference<DocumentData>);
+                    } else {
+                        (batch as FirebaseFirestoreTypes.WriteBatch).delete(documentRef as FirebaseFirestoreTypes.DocumentReference);
+                    }
+                },
+                commit: async () => {
+                    return Promise.all(batches.map(batch => batch.commit()));
+                },
+                getBatches: () => batches
+            };
+        }
     };
 };
 
@@ -268,5 +338,6 @@ export const {
     limit,
     startAfter,
     endBefore,
-    onSnapshot
+    onSnapshot,
+    splittableBatch
 } = createFirestoreService();

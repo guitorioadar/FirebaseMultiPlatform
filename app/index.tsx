@@ -8,7 +8,7 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
-import { addDoc, logEvents, collection, deleteDoc, getDocs, login, logout, onAuthStateChanged, orderBy, query, register, User, where, getDoc, doc, firestore, onSnapshot } from './firebase';
+import { addDoc, logEvents, collection, deleteDoc, getDocs, login, logout, onAuthStateChanged, orderBy, query, register, User, where, getDoc, doc, firestore, onSnapshot, splittableBatch } from './firebase';
 
 interface Todo {
   id: string;
@@ -127,14 +127,73 @@ export default function Index() {
     fetchTodos();
   };
 
-  // const fetchServerInfo = async () => {
-  //   console.log('fetchServerInfo', Date());
-  //   getDoc(doc('global', 'serverInfo'))
-  //     .then((snapshot) => {
-  //       console.log('fetchServerInfo getDoc snapshot', Date(), snapshot.data());
-  //       setServerInfo(snapshot.data() as ServerInfo);
-  //     });
-  // };
+  const addBatchOperations = async () => {
+    try {
+      const batch = splittableBatch(firestore, 1);
+      const timestamp = new Date();
+      const platformLabel = Platform.OS === 'web' ? 'Web' : Platform.OS === 'ios' ? 'iOS' : 'Android';
+
+      batch.set(doc(firestore, 'test', `doc1_${Platform.OS}`), {
+        name: `Test 1 from ${platformLabel}`,
+        email: Platform.OS === 'web'
+          ? 'wasi@orchid.co.nz'
+          : Platform.OS === 'ios'
+            ? 'wasisadman.cse@gmail.com'
+            : 'guitorioadar@gmail.com',
+        platform: Platform.OS,
+        timestamp
+      });
+
+      batch.set(doc(firestore, 'test', `doc2_${Platform.OS}`), {
+        name: `Test 2 from ${platformLabel}`,
+        platform: Platform.OS,
+        deviceType: Platform.OS === 'web'
+          ? 'Browser'
+          : Platform.OS === 'ios'
+            ? 'iPhone'
+            : 'Android Phone',
+        timestamp
+      });
+
+      batch.set(doc(firestore, 'test', `doc3_${Platform.OS}`), {
+        name: `Test 3 from ${platformLabel}`,
+        platform: Platform.OS,
+        testType: 'Batch Operation',
+        timestamp
+      });
+
+      batch.set(doc(firestore, 'test', `doc4_${Platform.OS}`), {
+        name: `Test 4 from ${platformLabel}`,
+        platform: Platform.OS,
+        mergeTest: true,
+        timestamp
+      }, { merge: true });
+
+      console.log(`Number of batches (${platformLabel}):`, batch.getBatches().length);
+      console.log(`Starting batch commit for ${platformLabel}...`);
+
+      await batch.commit();
+      console.log(`Batch operations completed successfully on ${platformLabel}`);
+
+    } catch (error) {
+      console.error(`Batch operation failed on ${Platform.OS}:`, error);
+    }
+  };
+
+  const deleteBatchOperations = async () => {
+    try {
+      const batch = splittableBatch(firestore);
+      batch.delete(doc(firestore, 'test', `doc1_${Platform.OS}`));
+      batch.delete(doc(firestore, 'test', `doc2_${Platform.OS}`));
+      batch.delete(doc(firestore, 'test', `doc3_${Platform.OS}`));
+      batch.delete(doc(firestore, 'test', `doc4_${Platform.OS}`));
+      console.log(`Number of batches (${Platform.OS}):`, batch.getBatches().length);
+      await batch.commit();
+      console.log(`Batch operations deleted successfully on ${Platform.OS}`);
+    } catch (error) {
+      console.error(`Batch operation failed on ${Platform.OS}:`, error);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -209,6 +268,14 @@ export default function Index() {
             </TouchableOpacity>
           </View>
         ))}
+        <View style={styles.batchOperationsContainer}>
+          <TouchableOpacity style={styles.testBatchOperationsButton} onPress={addBatchOperations}>
+            <Text style={styles.buttonText}>Add Batch Operations</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.testBatchOperationsButton} onPress={deleteBatchOperations}>
+            <Text style={styles.buttonText}>Delete Batch Operations</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.serverInfo}>
           <Text style={styles.serverInfoTitle}>Server Info With OnSnapshot</Text>
           {
@@ -263,6 +330,17 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
     marginBottom: 20,
+  },
+  batchOperationsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  testBatchOperationsButton: {
+    backgroundColor: '#007AFF',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 20,
+    marginTop: 20,
   },
   todoInput: {
     flexDirection: 'row',

@@ -22,5 +22,6 @@ export {
     limit,
     startAfter,
     endBefore,
-    onSnapshot
+    onSnapshot,
+    splittableBatch
 } from './services/firestore.service';
