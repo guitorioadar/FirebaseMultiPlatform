@@ -25,3 +25,4 @@ export {
     onSnapshot,
     splittableBatch
 } from './services/firestore.service';
+export { storage, ref, uploadBytesResumable, getDownloadURL } from './services/storage.service';

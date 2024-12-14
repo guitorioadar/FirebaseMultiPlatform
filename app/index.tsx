@@ -9,7 +9,7 @@ import {
   ScrollView
 } from 'react-native';
 import { addDoc, logEvents, collection, deleteDoc, getDocs, login, logout, onAuthStateChanged, orderBy, query, register, User, where, getDoc, doc, firestore, onSnapshot, splittableBatch } from './firebase';
-
+import StorageExample from './components/StorageExample';
 interface Todo {
   id: string;
   text: string;
@@ -284,6 +284,9 @@ export default function Index() {
             ))
           }
         </View>
+        <View style={styles.storageExample}>
+          <StorageExample />
+        </View>
       </ScrollView>
     </View>
   );
@@ -376,5 +379,8 @@ const styles = StyleSheet.create({
   serverInfoTitle: {
     fontSize: 18,
     marginBottom: 10,
+  },
+  storageExample: {
+    marginTop: 20,
   }
 });
