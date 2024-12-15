@@ -246,20 +246,21 @@ export default function Index() {
         <Text style={styles.buttonText}>Logout</Text>
       </TouchableOpacity>
 
-      <View style={styles.todoInput}>
-        <TextInput
-          style={styles.input}
-          placeholder="New Todo"
-          value={newTodo}
-          onSubmitEditing={addTodo}
-          onChangeText={setNewTodo}
-        />
-        <TouchableOpacity style={styles.addButton} onPress={addTodo}>
-          <Text style={styles.buttonText}>Add</Text>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView style={styles.todoList}>
+
+        <View style={styles.todoInput}>
+          <TextInput
+            style={styles.input}
+            placeholder="New Todo"
+            value={newTodo}
+            onSubmitEditing={addTodo}
+            onChangeText={setNewTodo}
+          />
+          <TouchableOpacity style={styles.addButton} onPress={addTodo}>
+            <Text style={styles.buttonText}>Add</Text>
+          </TouchableOpacity>
+        </View>
+
         {todos && todos?.map((todo) => (
           <View key={todo.id} style={styles.todoItem}>
             <Text>{todo.text}</Text>

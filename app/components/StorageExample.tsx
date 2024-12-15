@@ -61,40 +61,42 @@ export default function StorageExample() {
             return;
         }
 
-        const response = await fetch(image?.uri as string)
-        const blob = await response.blob()
-        console.log('uploadImage blob', typeof blob, blob)
+        try {
+            const response = await fetch(image?.uri as string)
+            const arrayBuffer = await response.arrayBuffer()
+            console.log('uploadImage arrayBuffer length', arrayBuffer.byteLength)
 
-        // const blob = new Blob([image?.uri])
+            console.log('uploadImage fileName', fileName)
 
-        console.log('uploadImage fileName', fileName)
+            const metadata = {
+                contentType: fileData?.mimeType,
+                // cacheControl: 'no-cache',
+            }
 
-        const metadata = {
-            contentType: fileData?.mimeType,
-            // cacheControl: 'no-cache',
+            console.log('uploadImage metadata', metadata)
+
+            const ref = storageRef(storage, `files/${Date.now()}-${fileName}`);
+            console.log('uploadImage ref', ref)
+            const task = uploadBytesResumable(
+                ref,
+                arrayBuffer as ArrayBuffer,
+                metadata
+            );
+
+            task.on('state_changed', (snapshot: StorageTaskSnapshot) => {
+                console.log('Uploading file: on state changed', snapshot);
+            });
+
+            task.then((snapshot: StorageTaskSnapshot) => {
+                console.log('Uploading file: then', snapshot);
+                getDownloadURL(ref).then((url) => {
+                    console.log('getDownloadURL url', url)
+                    setDownloadingURL(url)
+                })
+            });
+        } catch (error) {
+            console.error('Error uploading file:', error);
         }
-
-        console.log('uploadImage metadata', metadata)
-
-        const ref = storageRef(storage, `files/${Date.now()}-${fileName}`);
-        console.log('uploadImage ref', ref)
-        const task = uploadBytesResumable(
-            ref,
-            blob as Blob,
-            metadata
-        );
-
-        task.on('state_changed', (snapshot: StorageTaskSnapshot) => {
-            console.log('Uploading file: on state changed', snapshot);
-        });
-
-        task.then((snapshot: StorageTaskSnapshot) => {
-            console.log('Uploading file: then', snapshot);
-            getDownloadURL(ref).then((url) => {
-                console.log('getDownloadURL url', url)
-                setDownloadingURL(url)
-            })
-        });
     }
 
 

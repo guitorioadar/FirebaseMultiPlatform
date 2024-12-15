@@ -31,7 +31,7 @@ export const ref = (storage: WebStorage | NativeStorage, path: string): StorageR
 
 export const uploadBytesResumable = (
     reference: StorageReference,
-    data: Uint8Array | Blob,
+    data: Uint8Array | Blob | ArrayBuffer,
     metadata?: UploadMetadata | SettableMetadata
 ): UploadTask | FirebaseStorageTypes.Task => {
     if (Platform.OS === 'web') {
@@ -47,8 +47,8 @@ export const uploadBytesResumable = (
         // return task;
     } else {
         // For mobile, ensure we're using the raw blob
-        return (reference as FirebaseStorageTypes.Reference).put(data instanceof Blob ? data : new Blob([data])); // Metadata is not supported
-        // const task = (reference as FirebaseStorageTypes.Reference).put(data instanceof Blob ? data : new Blob([data])); // Metadata is not supported
+        return (reference as FirebaseStorageTypes.Reference).put(data); // Metadata is not supported
+        // const task = (reference as FirebaseStorageTypes.Reference).put(data); // Metadata is not supported
         // task.on('state_changed', snapshot => {
         //     console.log('Mobile upload progress:', snapshot);
         // });
