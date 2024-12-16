@@ -1,9 +1,10 @@
-import { getAnalytics } from 'firebase/analytics';
-import type analytics from '@react-native-firebase/analytics';
+import { Analytics as FirebaseAnalytics } from 'firebase/analytics';
+import { FirebaseAnalyticsTypes } from '@react-native-firebase/analytics';
 import { Platform } from 'react-native';
 
-type WebAnalytics = ReturnType<typeof getAnalytics>;
-type NativeAnalytics = ReturnType<typeof analytics>;
+type WebAnalytics = FirebaseAnalytics;
+type NativeAnalytics = FirebaseAnalyticsTypes.Module;
+
 
 const initializeWeb = async () => {
     try {
@@ -53,7 +54,7 @@ const createAnalyticsService = () => {
         }
     };
 
-    const logEvents = async (eventName: string, params = {}) => {
+    const logEvent = async (analyticsInstance: WebAnalytics | NativeAnalytics | null, eventName: string, params = {}) => {
         if (!analytics) return;
 
         const prefixedEventName = `${Platform.OS}_${eventName}`;
@@ -61,9 +62,9 @@ const createAnalyticsService = () => {
 
         try {
             if (Platform.OS === 'web' && webLogEvent) {
-                webLogEvent(analytics as WebAnalytics, prefixedEventName, params);
+                webLogEvent((analyticsInstance || analytics) as WebAnalytics, prefixedEventName, params);
             } else {
-                await (analytics as NativeAnalytics).logEvent(prefixedEventName, params);
+                await ((analyticsInstance || analytics) as NativeAnalytics).logEvent(prefixedEventName, params);
             }
         } catch (error) {
             console.error('Analytics error:', error);
@@ -73,8 +74,9 @@ const createAnalyticsService = () => {
     initialize();
 
     return {
-        logEvents
+        analytics,
+        logEvent
     };
 };
 
-export const { logEvents } = createAnalyticsService();
+export const { analytics, logEvent } = createAnalyticsService();

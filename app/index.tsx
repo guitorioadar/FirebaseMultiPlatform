@@ -8,7 +8,7 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
-import { addDoc, logEvents, collection, deleteDoc, getDocs, login, logout, onAuthStateChanged, orderBy, query, register, User, where, getDoc, doc, firestore, onSnapshot, splittableBatch } from './firebase';
+import { addDoc, analytics, logEvent, collection, deleteDoc, getDocs, login, logout, onAuthStateChanged, orderBy, query, register, User, where, getDoc, doc, firestore, onSnapshot, splittableBatch } from './firebase';
 import StorageExample from './components/StorageExample';
 interface Todo {
   id: string;
@@ -46,7 +46,7 @@ export default function Index() {
       login(email, password)
         .then(() => {
           fetchTodos();
-          logEvents('login', { email, password });
+          logEvent(analytics, 'login', { email, password });
         })
         .catch((error: Error) => {
           console.error('Login error:', error);
@@ -66,19 +66,19 @@ export default function Index() {
         console.error('Register error:', error);
         alert(error.message);
       });
-    logEvents('register', { email, password });
+    logEvent(analytics, 'register', { email, password });
   };
 
   const handleLogout = async () => {
     try {
       logout()
         .then(() => {
-          logEvents('logout');
+          logEvent(analytics, 'logout');
         })
         .catch((error: Error) => {
           console.error('Logout error:', error);
           alert(error.message);
-          logEvents('logout', { error: error.message });
+          logEvent(analytics, 'logout', { error: error.message });
         });
     } catch (error) {
       console.error('Logout error:', error);
@@ -97,7 +97,7 @@ export default function Index() {
         completed: false,
         createdAt: new Date()
       });
-      logEvents('add_todo', { text: newTodo });
+      logEvent(analytics, 'add_todo', { text: newTodo });
       setNewTodo('');
       fetchTodos();
     } catch (error) {
@@ -123,7 +123,7 @@ export default function Index() {
 
   const handleDeleteTodo = async (id: string) => {
     await deleteDoc('todos', id);
-    logEvents('delete_todo', { id, userId: user?.uid, text: todos.find(todo => todo.id === id)?.text });
+    logEvent(analytics, 'delete_todo', { id, userId: user?.uid, text: todos.find(todo => todo.id === id)?.text });
     fetchTodos();
   };
 

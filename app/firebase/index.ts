@@ -7,7 +7,7 @@ export {
     onAuthStateChanged,
     getCurrentUser
 } from './services/auth.service';
-export { logEvents } from './services/analytics.service';
+export { analytics, logEvent } from './services/analytics.service';
 export {
     firestore,
     collection,
