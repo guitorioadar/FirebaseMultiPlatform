@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { CollectionReference, DocumentData, DocumentReference, DocumentSnapshot, FieldPath, Query, QueryConstraint, QueryConstraintType, QueryFieldFilterConstraint, QuerySnapshot, Firestore as WebFirestore, WhereFilterOp, writeBatch as webWriteBatch, WriteBatch } from 'firebase/firestore';
+import { CollectionReference, DocumentData, DocumentReference, DocumentSnapshot, FieldPath, Query, QueryConstraint, QueryConstraintType, QueryFieldFilterConstraint, QuerySnapshot, Firestore as WebFirestore, WhereFilterOp, WriteBatch as WebWriteBatch } from 'firebase/firestore';
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 
 type QuerySnapshotArg =
@@ -34,10 +34,20 @@ type QueryConstraintMultiPlatformType = QueryConstraint | [string, string, unkno
 
 let firestoreInstance: WebFirestore | FirebaseFirestoreTypes.Module;
 
+export type BatchType = WebWriteBatch | FirebaseFirestoreTypes.WriteBatch;
 
-type BatchType = WriteBatch | FirebaseFirestoreTypes.WriteBatch;
-
-interface SplittableBatch {
+export interface WriteBatch {
+    set: (
+        documentRef: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference,
+        data: DocumentData | FirebaseFirestoreTypes.DocumentData,
+        options?: any
+    ) => void;
+    delete: (
+        documentRef: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference
+    ) => void;
+    commit: () => Promise<any>;
+}
+export interface SplittableBatch {
     set: (
         documentRef: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference,
         data: DocumentData | FirebaseFirestoreTypes.DocumentData,
@@ -116,6 +126,39 @@ const createFirestoreService = () => {
     };
 
     initialize();
+
+    // Define the overloads as a type
+    type DocFunction = {
+        (firestore: WebFirestore | FirebaseFirestoreTypes.Module, path: string, ...pathSegments: string[]): DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>;
+        (firestore: FirebaseFirestoreTypes.Module, path: string, ...pathSegments: string[]): DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>;
+        (collection: CollectionReferenceArg, path?: string): DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>;
+        (collection: FirebaseFirestoreTypes.CollectionReference<FirebaseFirestoreTypes.DocumentData>, path: string): DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>;
+    };
+
+    // Implement the function broadly
+    const docImplementation: DocFunction = (
+        firestore: WebFirestore | FirebaseFirestoreTypes.Module | CollectionReference<DocumentData> | FirebaseFirestoreTypes.CollectionReference<FirebaseFirestoreTypes.DocumentData>,
+        collectionName?: string,
+        docId?: string
+        // ): DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData> => {
+    ) => {
+        if (Platform.OS === 'web') {
+            if (firestore && typeof (firestore as any).path === 'string') {
+                return webFunctions.doc(firestore as CollectionReference<DocumentData>, collectionName || '', docId || '');
+            } else {
+                return webFunctions.doc(firestore || db, collectionName, docId);
+            }
+            // return webFunctions.doc(firestore || db, collectionName, docId);
+        } else {
+
+            if (firestore && typeof (firestore as any).path === 'string') {
+                return (firestore as FirebaseFirestoreTypes.CollectionReference).doc(collectionName || '');
+            } else {
+                return getNativeDB().collection(collectionName || '').doc(docId || '');
+            }
+            // return getNativeDB().collection(collectionName || '').doc(docId || '');
+        }
+    };
 
     return {
         firestore: firestoreInstance,
@@ -239,12 +282,29 @@ const createFirestoreService = () => {
             }
             return (docRef as FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>).get();
         },
-        doc: (firestore: WebFirestore | FirebaseFirestoreTypes.Module, collectionName: string, docId: string): DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData> => {
-            if (Platform.OS === 'web') {
-                return webFunctions.doc(firestore || db, collectionName, docId);
-            }
-            return getNativeDB().collection(collectionName).doc(docId);
-        },
+        // doc: (
+        //     firestore: WebFirestore | FirebaseFirestoreTypes.Module | CollectionReference<DocumentData> | FirebaseFirestoreTypes.CollectionReference<FirebaseFirestoreTypes.DocumentData>,
+        //     collectionName?: string,
+        //     docId?: string
+        // ): DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData> => {
+        //     if (Platform.OS === 'web') {
+        //         if (firestore && typeof (firestore as any).path === 'string') {
+        //             return webFunctions.doc(firestore as CollectionReference<DocumentData>, collectionName || '', docId || '');
+        //         } else {
+        //             return webFunctions.doc(firestore || db, collectionName, docId);
+        //         }
+        //         // return webFunctions.doc(firestore || db, collectionName, docId);
+        //     } else {
+
+        //         if (firestore && typeof (firestore as any).path === 'string') {
+        //             return (firestore as FirebaseFirestoreTypes.CollectionReference).doc(collectionName || '');
+        //         } else {
+        //             return getNativeDB().collection(collectionName || '').doc(docId || '');
+        //         }
+        //         // return getNativeDB().collection(collectionName || '').doc(docId || '');
+        //     }
+        // },
+        doc: docImplementation,
         addDoc: async (collectionName: string, data: DocumentData | FirebaseFirestoreTypes.DocumentData): Promise<DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>> => {
             if (Platform.OS === 'web') {
                 const collectionRef = webFunctions.collection(db, collectionName);
@@ -260,64 +320,69 @@ const createFirestoreService = () => {
             return getNativeDB().collection(collectionName).doc(docId).delete();
         },
         onSnapshot: (
-            doc: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference,
-            callback: (snapshot: DocumentSnapshot<DocumentData> | FirebaseFirestoreTypes.DocumentSnapshot<FirebaseFirestoreTypes.DocumentData>) => void
+            reference: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference 
+            // | Query<DocumentData> | FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>
+            ,
+            callback: (
+                snapshot: DocumentSnapshot<DocumentData> | FirebaseFirestoreTypes.DocumentSnapshot<FirebaseFirestoreTypes.DocumentData> 
+                // | QuerySnapshot<DocumentData> | FirebaseFirestoreTypes.QuerySnapshot<FirebaseFirestoreTypes.DocumentData>
+            ) => void,
+            onError?: (error: Error) => void
         ): (() => void) => {
             if (Platform.OS === 'web') {
-                return webFunctions.onSnapshot(doc, callback);
+                return webFunctions.onSnapshot(reference, callback, onError);
             }
-            return (doc as FirebaseFirestoreTypes.DocumentReference).onSnapshot(callback);
+            // Check if it's a Query
+            // if ('where' in reference) {
+            // if (reference && typeof (reference as any).path === 'where') {
+            // if (reference as FirebaseFirestoreTypes.Query) {
+            //     return (reference as FirebaseFirestoreTypes.Query).onSnapshot(callback, onError);
+            // }
+            return (reference as FirebaseFirestoreTypes.DocumentReference).onSnapshot(callback, onError);
         },
         splittableBatch: (
             firestore: WebFirestore | FirebaseFirestoreTypes.Module,
             maxQueriesPerBatch = 20
         ): SplittableBatch => {
-            console.log('firestore', firestore);
             const createBatch = (): BatchType => {
                 if (Platform.OS === 'web') {
-                    return webWriteBatch((firestore || db) as WebFirestore);
+                    const { writeBatch } = require('firebase/firestore');
+                    return writeBatch(firestore as WebFirestore);
                 }
-                return getNativeDB().batch();
+                return (firestore as FirebaseFirestoreTypes.Module).batch();
             };
 
             const batches: BatchType[] = [createBatch()];
             let count = 1;
 
-            const getBatch = (): BatchType => {
-                if (count > maxQueriesPerBatch) {
-                    batches.push(createBatch());
-                    count = 1;
-                } else {
-                    count++;
-                }
-                return batches[batches.length - 1];
-            };
-
             return {
                 set: (documentRef, data, options?) => {
-                    const batch = getBatch();
+                    const batch = batches[batches.length - 1];
                     if (Platform.OS === 'web') {
-                        (batch as WriteBatch).set(documentRef as DocumentReference<DocumentData>, data, options);
+                        (batch as WebWriteBatch).set(documentRef as DocumentReference<DocumentData>, data, options);
                     } else {
-                        // Native batch.set doesn't support options in the same way
-                        if (options?.merge) {
-                            (batch as FirebaseFirestoreTypes.WriteBatch).set(documentRef as FirebaseFirestoreTypes.DocumentReference, data, { merge: true });
-                        } else {
-                            (batch as FirebaseFirestoreTypes.WriteBatch).set(documentRef as FirebaseFirestoreTypes.DocumentReference, data);
-                        }
+                        (batch as FirebaseFirestoreTypes.WriteBatch).set(documentRef as FirebaseFirestoreTypes.DocumentReference, data, options);
+                    }
+                    count++;
+                    if (count > maxQueriesPerBatch) {
+                        batches.push(createBatch());
+                        count = 1;
                     }
                 },
                 delete: (documentRef) => {
-                    const batch = getBatch();
+                    const batch = batches[batches.length - 1];
                     if (Platform.OS === 'web') {
-                        (batch as WriteBatch).delete(documentRef as DocumentReference<DocumentData>);
+                        (batch as WebWriteBatch).delete(documentRef as DocumentReference<DocumentData>);
                     } else {
                         (batch as FirebaseFirestoreTypes.WriteBatch).delete(documentRef as FirebaseFirestoreTypes.DocumentReference);
                     }
+                    count++;
+                    if (count > maxQueriesPerBatch) {
+                        batches.push(createBatch());
+                        count = 1;
+                    }
                 },
-                commit: async () => {
-                    return Promise.all(batches.map(batch => batch.commit()));
-                },
+                commit: async () => Promise.all(batches.map(batch => batch.commit())),
                 getBatches: () => batches
             };
         }

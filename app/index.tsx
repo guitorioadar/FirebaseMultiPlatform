@@ -8,8 +8,10 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
-import { addDoc, analytics, logEvent, collection, deleteDoc, getDocs, login, logout, onAuthStateChanged, orderBy, query, register, User, where, getDoc, doc, firestore, onSnapshot, splittableBatch } from './firebase';
+import { BatchType, addDoc, analytics, logEvent, collection, deleteDoc, getDocs, login, logout, onAuthStateChanged, orderBy, query, register, User, where, getDoc, doc, firestore, splittableBatch, SplittableBatch, WriteBatch } from './firebase';
+import { onSnapshot } from './firebase';
 import StorageExample from './components/StorageExample';
+// import { DocumentData, DocumentReference, onSnapshot } from 'firebase/firestore';
 interface Todo {
   id: string;
   text: string;
@@ -169,6 +171,9 @@ export default function Index() {
         timestamp
       }, { merge: true });
 
+      const todosRef = doc(collection(firestore, 'todos'))
+      console.log('todosRef doc with collection', todosRef.path);
+
       console.log(`Number of batches (${platformLabel}):`, batch.getBatches().length);
       console.log(`Starting batch commit for ${platformLabel}...`);
 
@@ -182,7 +187,7 @@ export default function Index() {
 
   const deleteBatchOperations = async () => {
     try {
-      const batch = splittableBatch(firestore);
+      const batch = splittableBatch(firestore) as SplittableBatch;
       batch.delete(doc(firestore, 'test', `doc1_${Platform.OS}`));
       batch.delete(doc(firestore, 'test', `doc2_${Platform.OS}`));
       batch.delete(doc(firestore, 'test', `doc3_${Platform.OS}`));
@@ -194,6 +199,24 @@ export default function Index() {
       console.error(`Batch operation failed on ${Platform.OS}:`, error);
     }
   };
+
+  const addBatchOperationsWithDoc = async (
+    batch: WriteBatch | SplittableBatch,
+    platformLabel: string
+  ) => {
+    batch.set(
+      doc(firestore, 'test', `doc1_${Platform.OS}`),
+      {
+        name: `Test 1 from ${platformLabel}`,
+        email: Platform.OS === 'web'
+          ? 'wasi@orchid.co.nz'
+          : Platform.OS === 'ios'
+            ? 'wasisadman.cse@gmail.com'
+            : 'guitorioadar@gmail.com',
+      },
+      { merge: true }
+    );
+  }
 
   useEffect(() => {
     if (user) {

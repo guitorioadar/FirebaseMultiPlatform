@@ -35,6 +35,19 @@ npm run reset-project
 
 This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
+
+## Run Analytics
+
+When you're ready, run: (this is for android)
+
+```bash
+adb shell setprop debug.firebase.analytics.app com.wasisadman.FirebaseMultiPlatform
+```
+
+This command will trigger the analytics to be logged to the console realtime.
+
+
+
 ## Learn more
 
 To learn more about developing your project with Expo, look at the following resources:
