@@ -36,7 +36,8 @@ export default function Index() {
   const [user, setUser] = useState<User | null>(null);
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodo, setNewTodo] = useState<string>('');
-  const [serverInfo, setServerInfo] = useState<ServerInfo>();
+  const [serverInfoOnSnapshot, setServerInfoOnSnapshot] = useState<ServerInfo>();
+  const [serverInfoOnSnapshotQuery, setServerInfoOnSnapshotQuery] = useState<any>();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged((user) => setUser(user));
@@ -238,11 +239,33 @@ export default function Index() {
       const unsubscribeServerInfo = onSnapshot(
         doc(firestore, 'global', 'serverInfo'),
         (snapshot) => {
-          console.log('onSnapshot updated', Date(), snapshot.data());
-          setServerInfo(snapshot.data() as ServerInfo);
+          console.log('onSnapshot updated', Date(), snapshot?.data());
+          setServerInfoOnSnapshot(snapshot?.data() as ServerInfo);
         }
       );
-      return () => unsubscribeServerInfo();
+
+      const unsubscribeServerInfoQuery = onSnapshot(
+        query(
+          collection(firestore, 'todos'),
+          where('userId', '==', user.uid),
+          orderBy('text', 'asc'),
+        ),
+        (snap) => {
+          console.log('onSnapshot query updated', Date(), snap);
+          setServerInfoOnSnapshotQuery(snap?.docs);
+          snap?.docs.forEach((doc: any) => {
+            console.log('query doc', doc.id, doc.data());
+          });
+        }, (error) => {
+          // This should be very rare
+          console.log('onSnapshot query error', error);
+        }
+      );
+
+      return () => {
+        unsubscribeServerInfo();
+        unsubscribeServerInfoQuery();
+      };
     }
   }, [user]);
 
@@ -305,22 +328,34 @@ export default function Index() {
           </View>
         ))}
         <View style={styles.batchOperationsContainer}>
+          <Text style={styles.batchOperationsTitle}>Batch Operations</Text>
           <TouchableOpacity style={styles.testBatchOperationsButton} onPress={addBatchOperations}>
-            <Text style={styles.buttonText}>Add Batch Operations</Text>
+            <Text style={styles.buttonText}>Add Splittable Batch Operations</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.testBatchOperationsButton} onPress={deleteBatchOperations}>
-            <Text style={styles.buttonText}>Delete Batch Operations</Text>
+            <Text style={styles.buttonText}>Delete Splittable Batch Operations</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.testBatchOperationsButton} onPress={onAddWriteBatchOperationsWithDoc}>
             <Text style={styles.buttonText}>Add Write Batch Operations</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.serverInfo}>
-          <Text style={styles.serverInfoTitle}>Server Info With OnSnapshot</Text>
+          <Text style={styles.serverInfoTitle}>Server Info With OnSnapshot (Document Reference)</Text>
           {
-            Object.entries(serverInfo || {}).map(([key, value]) => (
+            Object.entries(serverInfoOnSnapshot || {}).map(([key, value]) => (
               <Text key={key}>{key}: {value + ''}</Text>
             ))
+          }
+        </View>
+        <View style={styles.serverInfo}>
+          <Text style={styles.serverInfoTitle}>Server Info With OnSnapshot (Query Reference)</Text>
+          {
+            serverInfoOnSnapshotQuery?.map((doc: any) => {
+              console.log('doc', doc.id, doc.data());
+              return (
+                <Text key={doc.id}>{doc.data().text}</Text>
+              )
+            })
           }
         </View>
         <View style={styles.storageExample}>
@@ -373,6 +408,12 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginBottom: 20,
   },
+  batchOperationsTitle: {
+    marginTop: 20,
+    marginBottom: 10,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   batchOperationsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -383,8 +424,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
     padding: 10,
     borderRadius: 5,
-    marginBottom: 20,
-    marginTop: 20,
+    margin: 5
   },
   todoInput: {
     flexDirection: 'row',

@@ -163,6 +163,34 @@ const createFirestoreService = () => {
         }
     };
 
+    type OnSnapshotFunction = {
+        (
+            reference: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference,
+            callback: (snapshot: DocumentSnapshot<DocumentData> | FirebaseFirestoreTypes.DocumentSnapshot<FirebaseFirestoreTypes.DocumentData>) => void,
+            onError?: (error: Error) => void
+        ): () => void;
+
+        (
+            reference: Query<DocumentData> | FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>,
+            callback: (snapshot: QuerySnapshot<DocumentData> | FirebaseFirestoreTypes.QuerySnapshot<FirebaseFirestoreTypes.DocumentData>) => void,
+            onError?: (error: Error) => void
+        ): () => void;
+    };
+
+    const onSnapshotImplementation: OnSnapshotFunction = (
+        reference: any,
+        callback: any,
+        onError?: (error: Error) => void
+    ): (() => void) => {
+        if (Platform.OS === 'web') {
+            return webFunctions.onSnapshot(reference, callback, onError);
+        }
+        if ('where' in reference) {
+            return (reference as FirebaseFirestoreTypes.Query).onSnapshot(callback, onError);
+        }
+        return (reference as FirebaseFirestoreTypes.DocumentReference).onSnapshot(callback, onError);
+    };
+
     return {
         firestore: firestoreInstance,
         orderBy: (field: string, direction: 'asc' | 'desc' = 'asc'): QueryConstraint | [string, string, 'asc' | 'desc'] => {
@@ -322,27 +350,25 @@ const createFirestoreService = () => {
             }
             return getNativeDB().collection(collectionName).doc(docId).delete();
         },
-        onSnapshot: (
-            reference: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference
-            // | Query<DocumentData> | FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>
-            ,
-            callback: (
-                snapshot: DocumentSnapshot<DocumentData> | FirebaseFirestoreTypes.DocumentSnapshot<FirebaseFirestoreTypes.DocumentData>
-                // | QuerySnapshot<DocumentData> | FirebaseFirestoreTypes.QuerySnapshot<FirebaseFirestoreTypes.DocumentData>
-            ) => void,
-            onError?: (error: Error) => void
-        ): (() => void) => {
-            if (Platform.OS === 'web') {
-                return webFunctions.onSnapshot(reference, callback, onError);
-            }
-            // Check if it's a Query
-            // if ('where' in reference) {
-            // if (reference && typeof (reference as any).path === 'where') {
-            // if (reference as FirebaseFirestoreTypes.Query) {
-            //     return (reference as FirebaseFirestoreTypes.Query).onSnapshot(callback, onError);
-            // }
-            return (reference as FirebaseFirestoreTypes.DocumentReference).onSnapshot(callback, onError);
-        },
+        // onSnapshot: (
+        //     reference: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference
+        //         | Query<DocumentData> | FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>
+        //     ,
+        //     callback: (
+        //         snapshot: DocumentSnapshot<DocumentData> | FirebaseFirestoreTypes.DocumentSnapshot<FirebaseFirestoreTypes.DocumentData>
+        //             | QuerySnapshot<DocumentData> | FirebaseFirestoreTypes.QuerySnapshot<FirebaseFirestoreTypes.DocumentData>
+        //     ) => void,
+        //     onError?: (error: Error) => void
+        // ): (() => void) => {
+        //     if (Platform.OS === 'web') {
+        //         return webFunctions.onSnapshot(reference, callback, onError);
+        //     }
+        //     if (reference as FirebaseFirestoreTypes.Query) {
+        //         return (reference as FirebaseFirestoreTypes.Query).onSnapshot(callback, onError);
+        //     }
+        //     return (reference as FirebaseFirestoreTypes.DocumentReference).onSnapshot(callback, onError);
+        // },
+        onSnapshot: onSnapshotImplementation,
         splittableBatch: (
             firestore: WebFirestore | FirebaseFirestoreTypes.Module,
             maxQueriesPerBatch = 20
