@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { CollectionReference, DocumentData, DocumentReference, DocumentSnapshot, FieldPath, Query, QueryConstraint, QueryConstraintType, QueryFieldFilterConstraint, QuerySnapshot, Firestore as WebFirestore, WhereFilterOp, WriteBatch as WebWriteBatch } from 'firebase/firestore';
+import { CollectionReference, DocumentData, DocumentReference, DocumentSnapshot, FieldPath, Query, QueryConstraint, QueryConstraintType, QueryFieldFilterConstraint, QuerySnapshot, Firestore as WebFirestore, WhereFilterOp, WriteBatch as WebWriteBatch, writeBatch as webWriteBatch } from 'firebase/firestore';
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 
 type QuerySnapshotArg =
@@ -28,6 +28,7 @@ type WebFunctions = {
     endAt: Function;
     endBefore: Function;
     onSnapshot: Function;
+    writeBatch: Function;
 };
 
 type QueryConstraintMultiPlatformType = QueryConstraint | [string, string, unknown] | [string, unknown] | [string, string, string, unknown];
@@ -80,7 +81,8 @@ const createFirestoreService = () => {
         startAfter: () => { throw new Error('Firestore not initialized') },
         endAt: () => { throw new Error('Firestore not initialized') },
         endBefore: () => { throw new Error('Firestore not initialized') },
-        onSnapshot: () => { throw new Error('Firestore not initialized') }
+        onSnapshot: () => { throw new Error('Firestore not initialized') },
+        writeBatch: () => { throw new Error('Firestore not initialized') }
     };
 
     const initializeWeb = async () => {
@@ -88,7 +90,7 @@ const createFirestoreService = () => {
             collection, query, where, getDocs,
             addDoc, doc, deleteDoc, orderBy,
             limit, startAt, startAfter, endAt, endBefore, getDoc,
-            onSnapshot
+            onSnapshot, writeBatch
         } = await import('firebase/firestore');
         const { db: webDb } = await import('../config/firebase.web');
 
@@ -100,7 +102,8 @@ const createFirestoreService = () => {
             limit, startAt, startAfter, endAt, endBefore,
             getDoc,
             onSnapshot,
-            setDoc: () => { throw new Error('Not implemented') }
+            setDoc: () => { throw new Error('Not implemented') },
+            writeBatch
         };
     };
 
@@ -320,11 +323,11 @@ const createFirestoreService = () => {
             return getNativeDB().collection(collectionName).doc(docId).delete();
         },
         onSnapshot: (
-            reference: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference 
+            reference: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference
             // | Query<DocumentData> | FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>
             ,
             callback: (
-                snapshot: DocumentSnapshot<DocumentData> | FirebaseFirestoreTypes.DocumentSnapshot<FirebaseFirestoreTypes.DocumentData> 
+                snapshot: DocumentSnapshot<DocumentData> | FirebaseFirestoreTypes.DocumentSnapshot<FirebaseFirestoreTypes.DocumentData>
                 // | QuerySnapshot<DocumentData> | FirebaseFirestoreTypes.QuerySnapshot<FirebaseFirestoreTypes.DocumentData>
             ) => void,
             onError?: (error: Error) => void
@@ -346,10 +349,10 @@ const createFirestoreService = () => {
         ): SplittableBatch => {
             const createBatch = (): BatchType => {
                 if (Platform.OS === 'web') {
-                    const { writeBatch } = require('firebase/firestore');
-                    return writeBatch(firestore as WebFirestore);
+                    // const { writeBatch } = require('firebase/firestore');
+                    return webFunctions.writeBatch((firestore || db) as WebFirestore);
                 }
-                return (firestore as FirebaseFirestoreTypes.Module).batch();
+                return getNativeDB().batch();
             };
 
             const batches: BatchType[] = [createBatch()];
@@ -385,6 +388,12 @@ const createFirestoreService = () => {
                 commit: async () => Promise.all(batches.map(batch => batch.commit())),
                 getBatches: () => batches
             };
+        },
+        writeBatch: (firestore: WebFirestore | FirebaseFirestoreTypes.Module) => {
+            if (Platform.OS === 'web') {
+                return webFunctions.writeBatch((firestore || db) as WebFirestore);
+            }
+            return getNativeDB().batch();
         }
     };
 };
@@ -404,5 +413,6 @@ export const {
     startAfter,
     endBefore,
     onSnapshot,
-    splittableBatch
+    splittableBatch,
+    writeBatch
 } = createFirestoreService();

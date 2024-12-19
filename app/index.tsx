@@ -8,7 +8,7 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
-import { BatchType, addDoc, analytics, logEvent, collection, deleteDoc, getDocs, login, logout, onAuthStateChanged, orderBy, query, register, User, where, getDoc, doc, firestore, splittableBatch, SplittableBatch, WriteBatch } from './firebase';
+import { BatchType, addDoc, analytics, logEvent, collection, deleteDoc, getDocs, login, logout, onAuthStateChanged, orderBy, query, register, User, where, getDoc, doc, firestore, splittableBatch, SplittableBatch, WriteBatch, writeBatch } from './firebase';
 import { onSnapshot } from './firebase';
 import StorageExample from './components/StorageExample';
 // import { DocumentData, DocumentReference, onSnapshot } from 'firebase/firestore';
@@ -200,12 +200,12 @@ export default function Index() {
     }
   };
 
-  const addBatchOperationsWithDoc = async (
+  const addWriteBatchOperationsWithDoc = async (
     batch: WriteBatch | SplittableBatch,
     platformLabel: string
   ) => {
     batch.set(
-      doc(firestore, 'test', `doc1_${Platform.OS}`),
+      doc(firestore, 'testWriteBatch', `doc1_${Platform.OS}`),
       {
         name: `Test 1 from ${platformLabel}`,
         email: Platform.OS === 'web'
@@ -216,6 +216,18 @@ export default function Index() {
       },
       { merge: true }
     );
+    try {
+      await batch.commit();
+      console.log(`WriteBatch commit successful for ${platformLabel}`);
+    } catch (error) {
+      console.error(`WriteBatch commit failed for ${platformLabel}:`, error);
+    }
+  }
+
+  const onAddWriteBatchOperationsWithDoc = async () => {
+    const batch = writeBatch(firestore);
+    console.log('batch', batch);
+    addWriteBatchOperationsWithDoc(batch, Platform.OS);
   }
 
   useEffect(() => {
@@ -299,6 +311,9 @@ export default function Index() {
           <TouchableOpacity style={styles.testBatchOperationsButton} onPress={deleteBatchOperations}>
             <Text style={styles.buttonText}>Delete Batch Operations</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.testBatchOperationsButton} onPress={onAddWriteBatchOperationsWithDoc}>
+            <Text style={styles.buttonText}>Add Write Batch Operations</Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.serverInfo}>
           <Text style={styles.serverInfoTitle}>Server Info With OnSnapshot</Text>
@@ -361,6 +376,8 @@ const styles = StyleSheet.create({
   batchOperationsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    flex: 1,
+    flexWrap: 'wrap',
   },
   testBatchOperationsButton: {
     backgroundColor: '#007AFF',

@@ -26,6 +26,7 @@ export {
     splittableBatch,
     SplittableBatch,
     BatchType,
-    WriteBatch
+    WriteBatch,
+    writeBatch
 } from './services/firestore.service';
 export { storage, ref, uploadBytes, getDownloadURL, uploadBytesResumable, StorageTaskSnapshot, getBytes, getBlob } from './services/storage.service';
