@@ -90,7 +90,7 @@ const createFirestoreService = () => {
             collection, query, where, getDocs,
             addDoc, doc, deleteDoc, orderBy,
             limit, startAt, startAfter, endAt, endBefore, getDoc,
-            onSnapshot, writeBatch
+            onSnapshot, writeBatch, setDoc
         } = await import('firebase/firestore');
         const { db: webDb } = await import('../config/firebase.web');
 
@@ -102,7 +102,7 @@ const createFirestoreService = () => {
             limit, startAt, startAfter, endAt, endBefore,
             getDoc,
             onSnapshot,
-            setDoc: () => { throw new Error('Not implemented') },
+            setDoc,
             writeBatch
         };
     };
@@ -313,6 +313,12 @@ const createFirestoreService = () => {
             }
             return (docRef as FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>).get();
         },
+        setDoc: async (docRef: DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>, data: DocumentData | FirebaseFirestoreTypes.DocumentData, options?: any): Promise<void> => {
+            if (Platform.OS === 'web') {
+                return webFunctions.setDoc(docRef, data, options);
+            }
+            return (docRef as FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>).set(data, options);
+        },
         // doc: (
         //     firestore: WebFirestore | FirebaseFirestoreTypes.Module | CollectionReference<DocumentData> | FirebaseFirestoreTypes.CollectionReference<FirebaseFirestoreTypes.DocumentData>,
         //     collectionName?: string,
@@ -336,12 +342,15 @@ const createFirestoreService = () => {
         //     }
         // },
         doc: docImplementation,
-        addDoc: async (collectionName: string, data: DocumentData | FirebaseFirestoreTypes.DocumentData): Promise<DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>> => {
+        addDoc: async (collectionName: string | CollectionReference<DocumentData> | FirebaseFirestoreTypes.CollectionReference<FirebaseFirestoreTypes.DocumentData>, data: DocumentData | FirebaseFirestoreTypes.DocumentData): Promise<DocumentReference<DocumentData> | FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>> => {
             if (Platform.OS === 'web') {
                 const collectionRef = webFunctions.collection(db, collectionName);
                 return webFunctions.addDoc(collectionRef, data);
             }
-            return getNativeDB().collection(collectionName).add(data);
+            if (typeof collectionName === 'string') {
+                return getNativeDB().collection(collectionName).add(data);
+            }
+            return (collectionName as FirebaseFirestoreTypes.CollectionReference<FirebaseFirestoreTypes.DocumentData>).add(data);
         },
         deleteDoc: async (collectionName: string, docId: string): Promise<void> => {
             if (Platform.OS === 'web') {
@@ -431,6 +440,7 @@ export const {
     where,
     getDocs,
     getDoc,
+    setDoc,
     doc,
     addDoc,
     deleteDoc,

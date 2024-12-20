@@ -15,6 +15,7 @@ export {
     where,
     getDocs,
     getDoc,
+    setDoc,
     doc,
     addDoc,
     deleteDoc,
